@@ -116,28 +116,56 @@ export function Dashboard({ isOpen, onClose, onEdit }: DashboardProps) {
       ctx.fillStyle = `color-mix(in srgb, ${icon.folderColor} 95%, #fff)`;
       ctx.fill();
 
+      // Inner shadow effect
+      ctx.shadowColor = 'transparent';
+      const innerShadow = ctx.createLinearGradient(60, 160, 60, 452);
+      innerShadow.addColorStop(0, 'rgba(0, 0, 0, 0.1)');
+      innerShadow.addColorStop(0.5, 'rgba(0, 0, 0, 0.05)');
+      innerShadow.addColorStop(1, 'rgba(0, 0, 0, 0.1)');
+      ctx.fillStyle = innerShadow;
+      ctx.fill();
+
+      // Highlight effects
+      const highlight = ctx.createLinearGradient(60, 80, 452, 80);
+      highlight.addColorStop(0, 'rgba(255, 255, 255, 0.2)');
+      highlight.addColorStop(0.5, 'rgba(255, 255, 255, 0.1)');
+      highlight.addColorStop(1, 'rgba(255, 255, 255, 0)');
+      ctx.fillStyle = highlight;
+      ctx.fill();
+
       if (icon.overlayImage) {
         const img = new Image();
         img.onload = () => {
-          const size = icon.imageSettings?.size || 192;
-          const x = (512 - size) / 2 + (icon.imageSettings?.positionX || 0);
-          const y = (512 - size) / 2 + (icon.imageSettings?.positionY || 0);
+          const settings = icon.imageSettings || {
+            size: 192,
+            brightness: 100,
+            contrast: 100,
+            saturation: 100,
+            opacity: 100,
+            hue: 0,
+            blur: 0,
+            positionX: 0,
+            positionY: 0,
+            positionZ: 0
+          };
+
+          const x = 256 - (settings.size / 2) + settings.positionX;
+          const y = 256 - (settings.size / 2) + settings.positionY;
           
           ctx.filter = `
-            brightness(${icon.imageSettings?.brightness || 100}%)
-            contrast(${icon.imageSettings?.contrast || 100}%)
-            saturate(${icon.imageSettings?.saturation || 100}%)
-            opacity(${icon.imageSettings?.opacity || 100}%)
-            hue-rotate(${icon.imageSettings?.hue || 0}deg)
-            blur(${icon.imageSettings?.blur || 0}px)
+            brightness(${settings.brightness}%)
+            contrast(${settings.contrast}%)
+            saturate(${settings.saturation}%)
+            opacity(${settings.opacity}%)
+            hue-rotate(${settings.hue}deg)
+            blur(${settings.blur}px)
           `;
           
-          ctx.translate(0, 0, icon.imageSettings?.positionZ || 0);
-          ctx.drawImage(img, x, y, size, size);
+          ctx.drawImage(img, x, y, settings.size, settings.size);
           
           const url = canvas.toDataURL('image/png');
           const link = document.createElement('a');
-          link.download = `${icon.name || 'folder'}-${icon.id}.png`;
+          link.download = `${icon.name || 'folder'}.png`;
           link.href = url;
           link.click();
         };
@@ -145,7 +173,7 @@ export function Dashboard({ isOpen, onClose, onEdit }: DashboardProps) {
       } else {
         const url = canvas.toDataURL('image/png');
         const link = document.createElement('a');
-        link.download = `${icon.name || 'folder'}-${icon.id}.png`;
+        link.download = `${icon.name || 'folder'}.png`;
         link.href = url;
         link.click();
       }
@@ -196,12 +224,12 @@ export function Dashboard({ isOpen, onClose, onEdit }: DashboardProps) {
                       alt="Overlay"
                       className="absolute"
                       style={{
-                        top: '25%',
-                        left: '25%',
-                        width: `${(icon.imageSettings?.size || 192) / 2}px`,
-                        height: `${(icon.imageSettings?.size || 192) / 2}px`,
+                        top: '50%',
+                        left: '50%',
+                        transform: `translate(-50%, -50%) translate(${icon.imageSettings?.positionX || 0}px, ${icon.imageSettings?.positionY || 0}px) translateZ(${icon.imageSettings?.positionZ || 0}px)`,
+                        width: `${((icon.imageSettings?.size || 192) / 512) * 128}px`,
+                        height: `${((icon.imageSettings?.size || 192) / 512) * 128}px`,
                         objectFit: 'contain',
-                        transform: `translate(${icon.imageSettings?.positionX || 0}px, ${icon.imageSettings?.positionY || 0}px) translateZ(${icon.imageSettings?.positionZ || 0}px)`,
                         filter: `
                           brightness(${icon.imageSettings?.brightness || 100}%)
                           contrast(${icon.imageSettings?.contrast || 100}%)
@@ -215,31 +243,31 @@ export function Dashboard({ isOpen, onClose, onEdit }: DashboardProps) {
                   )}
                 </div>
 
-                <h3 className="text-lg font-medium text-gray-800 mb-4">
+                <h3 className="text-lg font-medium text-gray-800 mb-2 text-center">
                   {icon.name || 'Sans nom'}
                 </h3>
 
-                <div className="flex flex-wrap gap-2 justify-center">
+                <div className="flex gap-1 justify-center mt-2">
                   <button
                     onClick={() => onEdit(icon)}
-                    className="flex items-center gap-1 px-2 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 transition-colors"
+                    className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
+                    title="Modifier"
                   >
-                    <Edit size={14} />
-                    Modifier
+                    <Edit size={18} />
                   </button>
                   <button
                     onClick={() => handleDelete(icon.id)}
-                    className="flex items-center gap-1 px-2 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600 transition-colors"
+                    className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                    title="Supprimer"
                   >
-                    <Trash2 size={14} />
-                    Supprimer
+                    <Trash2 size={18} />
                   </button>
                   <button
                     onClick={() => handleDownload(icon)}
-                    className="flex items-center gap-1 px-2 py-1 bg-green-500 text-white text-sm rounded hover:bg-green-600 transition-colors"
+                    className="p-2 text-green-500 hover:bg-green-50 rounded-lg transition-colors"
+                    title="Télécharger"
                   >
-                    <Download size={14} />
-                    Télécharger
+                    <Download size={18} />
                   </button>
                 </div>
               </div>
