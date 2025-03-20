@@ -1,74 +1,56 @@
-import React, { useState, useRef } from 'react';
-import { Folder, Upload, Download, Palette, RefreshCw } from 'lucide-react';
+import React, { useState, useRef, DragEvent } from 'react';
+import { Folder, Upload, Download, Palette, RefreshCw, Move, ZoomIn, Image as ImageIcon } from 'lucide-react';
+import Draggable from 'react-draggable';
 
 function App() {
   const [folderColor, setFolderColor] = useState('#FFB900');
   const [overlayImage, setOverlayImage] = useState<string | null>(null);
-  const [perspective, setPerspective] = useState(15);
+  const [imageSize, setImageSize] = useState(192);
+  const [brightness, setBrightness] = useState(100);
+  const [contrast, setContrast] = useState(100);
+  const [saturation, setSaturation] = useState(100);
+  const [opacity, setOpacity] = useState(100);
+  const [hue, setHue] = useState(0);
+  const [blur, setBlur] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const dropZoneRef = useRef<HTMLDivElement>(null);
 
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setOverlayImage(e.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleFileInput = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setOverlayImage(e.target?.result as string);
-      };
-      reader.readAsDataURL(file);
+      handleImageUpload(file);
     }
   };
 
-  const convertToICO = (canvas: HTMLCanvasElement): Blob => {
-    const sizes = [16, 32, 48, 64, 128, 256];
+  const handleDragOver = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setIsDragging(false);
     
-    const headerSize = 6;
-    const directorySize = sizes.length * 16;
-    const imageSizes = sizes.map(size => size * size * 4);
-    const totalSize = headerSize + directorySize + imageSizes.reduce((a, b) => a + b, 0);
-    
-    const buffer = new ArrayBuffer(totalSize);
-    const view = new DataView(buffer);
-    
-    view.setUint16(0, 0, true);
-    view.setUint16(2, 1, true);
-    view.setUint16(4, sizes.length, true);
-    
-    let offset = headerSize;
-    let imageDataOffset = headerSize + directorySize;
-    
-    sizes.forEach((size) => {
-      const imageSize = size * size * 4;
-      
-      view.setUint8(offset, size);
-      view.setUint8(offset + 1, size);
-      view.setUint8(offset + 2, 0);
-      view.setUint8(offset + 3, 0);
-      view.setUint16(offset + 4, 1, true);
-      view.setUint16(offset + 6, 32, true);
-      view.setUint32(offset + 8, imageSize, true);
-      view.setUint32(offset + 12, imageDataOffset, true);
-      
-      const tempCanvas = document.createElement('canvas');
-      tempCanvas.width = size;
-      tempCanvas.height = size;
-      const ctx = tempCanvas.getContext('2d');
-      
-      if (ctx) {
-        ctx.drawImage(canvas, 0, 0, size, size);
-        const imageData = ctx.getImageData(0, 0, size, size);
-        const data = imageData.data;
-        
-        for (let i = 0; i < data.length; i++) {
-          view.setUint8(imageDataOffset + i, data[i]);
-        }
-      }
-      
-      offset += 16;
-      imageDataOffset += imageSize;
-    });
-    
-    return new Blob([buffer], { type: 'image/x-icon' });
+    const file = event.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) {
+      handleImageUpload(file);
+    }
   };
 
   const handleExport = () => {
@@ -174,24 +156,45 @@ function App() {
       if (overlayImage) {
         const img = new Image();
         img.onload = () => {
-          ctx.drawImage(img, 160, 200, 192, 192);
-          const icoBlob = convertToICO(canvas);
-          const url = URL.createObjectURL(icoBlob);
+          // Apply image adjustments
+          const tempCanvas = document.createElement('canvas');
+          tempCanvas.width = imageSize;
+          tempCanvas.height = imageSize;
+          const tempCtx = tempCanvas.getContext('2d');
+          
+          if (tempCtx) {
+            tempCtx.filter = `
+              brightness(${brightness}%)
+              contrast(${contrast}%)
+              saturate(${saturation}%)
+              opacity(${opacity}%)
+              hue-rotate(${hue}deg)
+              blur(${blur}px)
+            `;
+
+            tempCtx.drawImage(img, 0, 0, imageSize, imageSize);
+            
+            // Draw the adjusted image onto the main canvas
+            const x = (512 - imageSize) / 2;
+            const y = (512 - imageSize) / 2;
+            ctx.drawImage(tempCanvas, x, y);
+          }
+          
+          // Export as PNG
+          const url = canvas.toDataURL('image/png');
           const link = document.createElement('a');
-          link.download = 'custom-folder.ico';
+          link.download = 'custom-folder.png';
           link.href = url;
           link.click();
-          URL.revokeObjectURL(url);
         };
         img.src = overlayImage;
       } else {
-        const icoBlob = convertToICO(canvas);
-        const url = URL.createObjectURL(icoBlob);
+        // Export as PNG without overlay
+        const url = canvas.toDataURL('image/png');
         const link = document.createElement('a');
-        link.download = 'custom-folder.ico';
+        link.download = 'custom-folder.png';
         link.href = url;
         link.click();
-        URL.revokeObjectURL(url);
       }
       
       ctx.restore();
@@ -200,20 +203,28 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center p-8">
-      <div className="bg-white p-12 rounded-2xl shadow-2xl max-w-2xl w-full">
+      <div className="bg-white p-12 rounded-2xl shadow-2xl max-w-4xl w-full">
         <h1 className="text-4xl font-bold text-gray-800 mb-8 text-center">
           Créateur d'Icônes de Dossier
         </h1>
 
-        <div className="flex flex-col md:flex-row gap-12 items-center mb-12">
-          <div className="relative w-64 h-64 flex-shrink-0">
+        <div className="flex flex-col lg:flex-row gap-12 items-start">
+          <div 
+            ref={dropZoneRef}
+            className={`relative w-64 h-64 flex-shrink-0 mx-auto rounded-xl transition-all ${
+              isDragging ? 'bg-blue-100 border-2 border-dashed border-blue-500' : ''
+            }`}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+          >
             <canvas
               ref={canvasRef}
               width="256"
               height="256"
               className="absolute top-0 left-0"
             />
-            <div className="w-full h-full">
+            <div className="w-full h-full relative">
               <Folder 
                 size={256} 
                 fill={folderColor}
@@ -221,16 +232,33 @@ function App() {
                 className="drop-shadow-2xl"
               />
               {overlayImage && (
-                <img 
-                  src={overlayImage} 
-                  alt="Overlay" 
-                  className="absolute top-1/4 left-1/4 w-1/2 h-1/2 object-contain"
-                />
+                <Draggable bounds="parent">
+                  <img 
+                    src={overlayImage} 
+                    alt="Overlay" 
+                    className="absolute cursor-move"
+                    style={{
+                      top: '25%',
+                      left: '25%',
+                      width: `${imageSize / 2}px`,
+                      height: `${imageSize / 2}px`,
+                      objectFit: 'contain',
+                      filter: `
+                        brightness(${brightness}%)
+                        contrast(${contrast}%)
+                        saturate(${saturation}%)
+                        opacity(${opacity}%)
+                        hue-rotate(${hue}deg)
+                        blur(${blur}px)
+                      `
+                    }}
+                  />
+                </Draggable>
               )}
             </div>
           </div>
 
-          <div className="flex-1 space-y-8 w-full">
+          <div className="flex-1 space-y-6 w-full">
             <div>
               <label className="block text-lg font-medium text-gray-700 mb-3">
                 Couleur du dossier
@@ -250,28 +278,142 @@ function App() {
               <label className="block text-lg font-medium text-gray-700 mb-3">
                 Image superposée
               </label>
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-colors text-lg font-medium"
+              <div 
+                className={`w-full border-2 border-dashed rounded-xl p-8 text-center transition-colors ${
+                  isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300'
+                }`}
               >
-                <Upload size={24} />
-                Importer une image
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleImageUpload}
-                className="hidden"
-              />
+                <p className="text-gray-600 mb-4">
+                  Glissez-déposez une image ici ou
+                </p>
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex items-center justify-center gap-3 px-6 py-4 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-colors text-lg font-medium mx-auto"
+                >
+                  <Upload size={24} />
+                  Importer une image
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileInput}
+                  className="hidden"
+                />
+              </div>
             </div>
+
+            {overlayImage && (
+              <>
+                <div>
+                  <label className="block text-lg font-medium text-gray-700 mb-3">
+                    Taille de l'image
+                  </label>
+                  <div className="flex items-center gap-4">
+                    <ZoomIn className="text-gray-500" size={24} />
+                    <input
+                      type="range"
+                      min="32"
+                      max="384"
+                      value={imageSize}
+                      onChange={(e) => setImageSize(Number(e.target.value))}
+                      className="w-full"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-lg font-medium text-gray-700 mb-3">
+                    Luminosité
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="200"
+                    value={brightness}
+                    onChange={(e) => setBrightness(Number(e.target.value))}
+                    className="w-full"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-lg font-medium text-gray-700 mb-3">
+                    Contraste
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="200"
+                    value={contrast}
+                    onChange={(e) => setContrast(Number(e.target.value))}
+                    className="w-full"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-lg font-medium text-gray-700 mb-3">
+                    Saturation
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="200"
+                    value={saturation}
+                    onChange={(e) => setSaturation(Number(e.target.value))}
+                    className="w-full"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-lg font-medium text-gray-700 mb-3">
+                    Opacité
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={opacity}
+                    onChange={(e) => setOpacity(Number(e.target.value))}
+                    className="w-full"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-lg font-medium text-gray-700 mb-3">
+                    Teinte
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="360"
+                    value={hue}
+                    onChange={(e) => setHue(Number(e.target.value))}
+                    className="w-full"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-lg font-medium text-gray-700 mb-3">
+                    Flou
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="20"
+                    value={blur}
+                    onChange={(e) => setBlur(Number(e.target.value))}
+                    className="w-full"
+                  />
+                </div>
+              </>
+            )}
 
             <button
               onClick={handleExport}
               className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-green-500 text-white rounded-xl hover:bg-green-600 transition-colors text-lg font-medium"
             >
               <Download size={24} />
-              Exporter en .ico
+              Télécharger
             </button>
           </div>
         </div>
