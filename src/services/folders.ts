@@ -19,11 +19,15 @@ export interface ImageSettings {
   opacity: number;
   hue: number;
   blur: number;
+  positionX: number;
+  positionY: number;
+  positionZ: number;
 }
 
 export interface FolderIcon {
   id?: string;
   userId: string;
+  name: string;
   folderColor: string;
   overlayImage?: string;
   imageSettings?: ImageSettings;

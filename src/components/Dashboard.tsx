@@ -1,33 +1,26 @@
 import { useEffect, useState } from 'react';
-import { Folder, Trash2, Edit, Download, Save, BookOpen } from 'lucide-react';
+import { Folder, Trash2, Edit, Download } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { getUserFolderIcons, FolderIcon, deleteFolderIcon, savePreset, getUserPresets, Preset, ImageSettings } from '../services/folders';
+import { getUserFolderIcons, FolderIcon, deleteFolderIcon } from '../services/folders';
 import toast from 'react-hot-toast';
 
 interface DashboardProps {
+  isOpen: boolean;
   onClose: () => void;
   onEdit: (icon: FolderIcon) => void;
 }
 
-export function Dashboard({ onClose, onEdit }: DashboardProps) {
+export function Dashboard({ isOpen, onClose, onEdit }: DashboardProps) {
   const [icons, setIcons] = useState<FolderIcon[]>([]);
   const [loading, setLoading] = useState(true);
-  const [presets, setPresets] = useState<Preset[]>([]);
-  const [showPresetModal, setShowPresetModal] = useState(false);
-  const [selectedIcon, setSelectedIcon] = useState<FolderIcon | null>(null);
-  const [presetName, setPresetName] = useState('');
   const { user } = useAuth();
 
   useEffect(() => {
     const loadData = async () => {
       if (!user) return;
       try {
-        const [userIcons, userPresets] = await Promise.all([
-          getUserFolderIcons(user.uid),
-          getUserPresets(user.uid)
-        ]);
+        const userIcons = await getUserFolderIcons(user.uid);
         setIcons(userIcons);
-        setPresets(userPresets);
       } catch (error) {
         toast.error('Erreur lors du chargement des données');
       } finally {
@@ -35,8 +28,12 @@ export function Dashboard({ onClose, onEdit }: DashboardProps) {
       }
     };
 
-    loadData();
-  }, [user]);
+    if (isOpen) {
+      loadData();
+    }
+  }, [user, isOpen]);
+
+  if (!isOpen) return null;
 
   const handleDelete = async (iconId: string) => {
     try {
@@ -46,38 +43,6 @@ export function Dashboard({ onClose, onEdit }: DashboardProps) {
     } catch (error) {
       toast.error('Erreur lors de la suppression');
     }
-  };
-
-  const handleSavePreset = async () => {
-    if (!selectedIcon?.imageSettings || !presetName.trim() || !user) {
-      toast.error('Veuillez remplir tous les champs');
-      return;
-    }
-
-    try {
-      await savePreset({
-        userId: user.uid,
-        name: presetName,
-        imageSettings: selectedIcon.imageSettings
-      });
-      toast.success('Préréglage sauvegardé');
-      setShowPresetModal(false);
-      setPresetName('');
-      setSelectedIcon(null);
-      
-      // Refresh presets
-      const newPresets = await getUserPresets(user.uid);
-      setPresets(newPresets);
-    } catch (error) {
-      toast.error('Erreur lors de la sauvegarde du préréglage');
-    }
-  };
-
-  const handleApplyPreset = (preset: Preset, icon: FolderIcon) => {
-    onEdit({
-      ...icon,
-      imageSettings: preset.imageSettings
-    });
   };
 
   const handleDownload = async (icon: FolderIcon) => {
@@ -155,8 +120,8 @@ export function Dashboard({ onClose, onEdit }: DashboardProps) {
         const img = new Image();
         img.onload = () => {
           const size = icon.imageSettings?.size || 192;
-          const x = (512 - size) / 2;
-          const y = (512 - size) / 2;
+          const x = (512 - size) / 2 + (icon.imageSettings?.positionX || 0);
+          const y = (512 - size) / 2 + (icon.imageSettings?.positionY || 0);
           
           ctx.filter = `
             brightness(${icon.imageSettings?.brightness || 100}%)
@@ -167,11 +132,12 @@ export function Dashboard({ onClose, onEdit }: DashboardProps) {
             blur(${icon.imageSettings?.blur || 0}px)
           `;
           
+          ctx.translate(0, 0, icon.imageSettings?.positionZ || 0);
           ctx.drawImage(img, x, y, size, size);
           
           const url = canvas.toDataURL('image/png');
           const link = document.createElement('a');
-          link.download = `folder-${icon.id}.png`;
+          link.download = `${icon.name || 'folder'}-${icon.id}.png`;
           link.href = url;
           link.click();
         };
@@ -179,7 +145,7 @@ export function Dashboard({ onClose, onEdit }: DashboardProps) {
       } else {
         const url = canvas.toDataURL('image/png');
         const link = document.createElement('a');
-        link.download = `folder-${icon.id}.png`;
+        link.download = `${icon.name || 'folder'}-${icon.id}.png`;
         link.href = url;
         link.click();
       }
@@ -235,6 +201,7 @@ export function Dashboard({ onClose, onEdit }: DashboardProps) {
                         width: `${(icon.imageSettings?.size || 192) / 2}px`,
                         height: `${(icon.imageSettings?.size || 192) / 2}px`,
                         objectFit: 'contain',
+                        transform: `translate(${icon.imageSettings?.positionX || 0}px, ${icon.imageSettings?.positionY || 0}px) translateZ(${icon.imageSettings?.positionZ || 0}px)`,
                         filter: `
                           brightness(${icon.imageSettings?.brightness || 100}%)
                           contrast(${icon.imageSettings?.contrast || 100}%)
@@ -248,19 +215,9 @@ export function Dashboard({ onClose, onEdit }: DashboardProps) {
                   )}
                 </div>
 
-                {icon.imageSettings && (
-                  <div className="w-full mb-4 text-sm text-gray-600">
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>Taille: {icon.imageSettings.size}</div>
-                      <div>Luminosité: {icon.imageSettings.brightness}%</div>
-                      <div>Contraste: {icon.imageSettings.contrast}%</div>
-                      <div>Saturation: {icon.imageSettings.saturation}%</div>
-                      <div>Opacité: {icon.imageSettings.opacity}%</div>
-                      <div>Teinte: {icon.imageSettings.hue}°</div>
-                      <div>Flou: {icon.imageSettings.blur}px</div>
-                    </div>
-                  </div>
-                )}
+                <h3 className="text-lg font-medium text-gray-800 mb-4">
+                  {icon.name || 'Sans nom'}
+                </h3>
 
                 <div className="flex flex-wrap gap-2 justify-center">
                   <button
@@ -284,77 +241,12 @@ export function Dashboard({ onClose, onEdit }: DashboardProps) {
                     <Download size={14} />
                     Télécharger
                   </button>
-                  {icon.imageSettings && (
-                    <button
-                      onClick={() => {
-                        setSelectedIcon(icon);
-                        setShowPresetModal(true);
-                      }}
-                      className="flex items-center gap-1 px-2 py-1 bg-purple-500 text-white text-sm rounded hover:bg-purple-600 transition-colors"
-                    >
-                      <Save size={14} />
-                      Préréglage
-                    </button>
-                  )}
                 </div>
-
-                {presets.length > 0 && (
-                  <div className="mt-2 w-full">
-                    <select
-                      onChange={(e) => {
-                        const preset = presets.find(p => p.id === e.target.value);
-                        if (preset) handleApplyPreset(preset, icon);
-                      }}
-                      className="w-full text-sm p-1 border rounded"
-                      defaultValue=""
-                    >
-                      <option value="" disabled>Charger un préréglage</option>
-                      {presets.map(preset => (
-                        <option key={preset.id} value={preset.id}>
-                          {preset.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
               </div>
             ))}
           </div>
         )}
       </div>
-
-      {showPresetModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full">
-            <h3 className="text-xl font-bold mb-4">Sauvegarder le préréglage</h3>
-            <input
-              type="text"
-              value={presetName}
-              onChange={(e) => setPresetName(e.target.value)}
-              placeholder="Nom du préréglage"
-              className="w-full p-2 border rounded mb-4"
-            />
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={() => {
-                  setShowPresetModal(false);
-                  setPresetName('');
-                  setSelectedIcon(null);
-                }}
-                className="px-4 py-2 text-gray-600 hover:text-gray-800"
-              >
-                Annuler
-              </button>
-              <button
-                onClick={handleSavePreset}
-                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-              >
-                Sauvegarder
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
