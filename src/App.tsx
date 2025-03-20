@@ -1,5 +1,5 @@
 import React, { useState, useRef, DragEvent, useEffect } from 'react';
-import { Folder, Upload, Download, Palette, Move, ZoomIn, Image as ImageIcon, LogIn, LogOut, LayoutDashboard, Save, Trash2 } from 'lucide-react';
+import { Folder, Upload, Download, Palette, Move, ZoomIn, LogIn, LogOut, LayoutDashboard, Save, Trash2 } from 'lucide-react';
 import Draggable from 'react-draggable';
 import { useAuth } from './contexts/AuthContext';
 import { AuthModal } from './components/AuthModal';
@@ -148,11 +148,6 @@ function App() {
   };
 
   const handleExport = async () => {
-    if (!user) {
-      setIsAuthModalOpen(true);
-      return;
-    }
-
     if (!folderName.trim()) {
       toast.error('Veuillez donner un nom au dossier');
       return;
@@ -164,103 +159,96 @@ function App() {
     const ctx = canvas.getContext('2d');
     
     if (ctx) {
-      ctx.save();
-      
-      // Background with subtle gradient
-      const bgGradient = ctx.createLinearGradient(0, 0, 512, 512);
-      bgGradient.addColorStop(0, 'rgba(255, 255, 255, 0.1)');
-      bgGradient.addColorStop(1, 'rgba(0, 0, 0, 0.1)');
-      ctx.fillStyle = bgGradient;
-      ctx.fillRect(0, 0, 512, 512);
+      // Dessiner le dossier
+      const drawFolder = () => {
+        // Background avec gradient subtil
+        const bgGradient = ctx.createLinearGradient(0, 0, 512, 512);
+        bgGradient.addColorStop(0, 'rgba(255, 255, 255, 0.1)');
+        bgGradient.addColorStop(1, 'rgba(0, 0, 0, 0.1)');
+        ctx.fillStyle = bgGradient;
+        ctx.fillRect(0, 0, 512, 512);
 
-      // Main folder body shadow
-      ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
-      ctx.shadowBlur = 20;
-      ctx.shadowOffsetX = 8;
-      ctx.shadowOffsetY = 8;
+        // Ombre du corps principal du dossier
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+        ctx.shadowBlur = 20;
+        ctx.shadowOffsetX = 8;
+        ctx.shadowOffsetY = 8;
 
-      // Back panel of the folder (depth effect)
-      ctx.beginPath();
-      ctx.moveTo(70, 170);
-      ctx.lineTo(442, 170);
-      ctx.lineTo(442, 442);
-      ctx.lineTo(70, 442);
-      ctx.closePath();
-      ctx.fillStyle = `color-mix(in srgb, ${folderColor} 85%, #000)`;
-      ctx.fill();
+        // Panneau arrière du dossier (effet de profondeur)
+        ctx.beginPath();
+        ctx.moveTo(70, 170);
+        ctx.lineTo(442, 170);
+        ctx.lineTo(442, 442);
+        ctx.lineTo(70, 442);
+        ctx.closePath();
+        ctx.fillStyle = `color-mix(in srgb, ${folderColor} 85%, #000)`;
+        ctx.fill();
 
-      // Main folder body
-      ctx.shadowColor = 'rgba(0, 0, 0, 0.2)';
-      ctx.shadowBlur = 15;
-      ctx.shadowOffsetX = 4;
-      ctx.shadowOffsetY = 4;
-      
-      ctx.beginPath();
-      ctx.moveTo(60, 160);
-      ctx.lineTo(432, 160);
-      ctx.quadraticCurveTo(452, 160, 452, 180);
-      ctx.lineTo(452, 432);
-      ctx.quadraticCurveTo(452, 452, 432, 452);
-      ctx.lineTo(80, 452);
-      ctx.quadraticCurveTo(60, 452, 60, 432);
-      ctx.lineTo(60, 180);
-      ctx.quadraticCurveTo(60, 160, 80, 160);
-      ctx.closePath();
-      ctx.fillStyle = folderColor;
-      ctx.fill();
+        // Corps principal du dossier
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.2)';
+        ctx.shadowBlur = 15;
+        ctx.shadowOffsetX = 4;
+        ctx.shadowOffsetY = 4;
+        
+        ctx.beginPath();
+        ctx.moveTo(60, 160);
+        ctx.lineTo(432, 160);
+        ctx.quadraticCurveTo(452, 160, 452, 180);
+        ctx.lineTo(452, 432);
+        ctx.quadraticCurveTo(452, 452, 432, 452);
+        ctx.lineTo(80, 452);
+        ctx.quadraticCurveTo(60, 452, 60, 432);
+        ctx.lineTo(60, 180);
+        ctx.quadraticCurveTo(60, 160, 80, 160);
+        ctx.closePath();
+        ctx.fillStyle = folderColor;
+        ctx.fill();
 
-      // Top tab shadow
-      ctx.shadowColor = 'rgba(0, 0, 0, 0.15)';
-      ctx.shadowBlur = 10;
-      ctx.shadowOffsetX = 3;
-      ctx.shadowOffsetY = 3;
+        // Ombre de l'onglet supérieur
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.15)';
+        ctx.shadowBlur = 10;
+        ctx.shadowOffsetX = 3;
+        ctx.shadowOffsetY = 3;
 
-      // Folder tab
-      ctx.beginPath();
-      ctx.moveTo(80, 160);
-      ctx.lineTo(200, 80);
-      ctx.quadraticCurveTo(220, 80, 240, 80);
-      ctx.lineTo(432, 80);
-      ctx.quadraticCurveTo(452, 80, 452, 100);
-      ctx.lineTo(452, 160);
-      ctx.lineTo(80, 160);
-      ctx.closePath();
-      ctx.fillStyle = `color-mix(in srgb, ${folderColor} 95%, #fff)`;
-      ctx.fill();
+        // Onglet du dossier
+        ctx.beginPath();
+        ctx.moveTo(80, 160);
+        ctx.lineTo(200, 80);
+        ctx.quadraticCurveTo(220, 80, 240, 80);
+        ctx.lineTo(432, 80);
+        ctx.quadraticCurveTo(452, 80, 452, 100);
+        ctx.lineTo(452, 160);
+        ctx.lineTo(80, 160);
+        ctx.closePath();
+        ctx.fillStyle = `color-mix(in srgb, ${folderColor} 95%, #fff)`;
+        ctx.fill();
 
-      // Inner shadow effect
-      ctx.shadowColor = 'transparent';
-      const innerShadow = ctx.createLinearGradient(60, 160, 60, 452);
-      innerShadow.addColorStop(0, 'rgba(0, 0, 0, 0.1)');
-      innerShadow.addColorStop(0.5, 'rgba(0, 0, 0, 0.05)');
-      innerShadow.addColorStop(1, 'rgba(0, 0, 0, 0.1)');
-      ctx.fillStyle = innerShadow;
-      ctx.fill();
+        // Effet d'ombre interne
+        ctx.shadowColor = 'transparent';
+        const innerShadow = ctx.createLinearGradient(60, 160, 60, 452);
+        innerShadow.addColorStop(0, 'rgba(0, 0, 0, 0.1)');
+        innerShadow.addColorStop(0.5, 'rgba(0, 0, 0, 0.05)');
+        innerShadow.addColorStop(1, 'rgba(0, 0, 0, 0.1)');
+        ctx.fillStyle = innerShadow;
+        ctx.fill();
 
-      // Highlight effects
-      const highlight = ctx.createLinearGradient(60, 80, 452, 80);
-      highlight.addColorStop(0, 'rgba(255, 255, 255, 0.2)');
-      highlight.addColorStop(0.5, 'rgba(255, 255, 255, 0.1)');
-      highlight.addColorStop(1, 'rgba(255, 255, 255, 0)');
-      ctx.fillStyle = highlight;
-      
-      // Top edge highlight
-      ctx.beginPath();
-      ctx.moveTo(80, 160);
-      ctx.lineTo(200, 80);
-      ctx.quadraticCurveTo(220, 80, 240, 80);
-      ctx.lineTo(432, 80);
-      ctx.quadraticCurveTo(452, 80, 452, 100);
-      ctx.lineTo(452, 160);
-      ctx.lineTo(80, 160);
-      ctx.closePath();
-      ctx.fill();
+        // Effets de surbrillance
+        const highlight = ctx.createLinearGradient(60, 80, 452, 80);
+        highlight.addColorStop(0, 'rgba(255, 255, 255, 0.2)');
+        highlight.addColorStop(0.5, 'rgba(255, 255, 255, 0.1)');
+        highlight.addColorStop(1, 'rgba(255, 255, 255, 0)');
+        ctx.fillStyle = highlight;
+        ctx.fill();
+      };
 
-      // Add overlay image if exists
+      // Dessiner le dossier
+      drawFolder();
+
+      // Ajouter l'image superposée si elle existe
       if (overlayImage) {
         const img = new Image();
         img.onload = async () => {
-          // Apply image adjustments
+          // Appliquer les ajustements d'image
           const tempCanvas = document.createElement('canvas');
           tempCanvas.width = imageSize;
           tempCanvas.height = imageSize;
@@ -278,68 +266,69 @@ function App() {
 
             tempCtx.drawImage(img, 0, 0, imageSize, imageSize);
             
-            // Draw the adjusted image onto the main canvas
+            // Dessiner l'image ajustée sur le canvas principal
             const x = (512 - imageSize) / 2 + positionX;
             const y = (512 - imageSize) / 2 + positionY;
             ctx.translate(0, 0, positionZ);
             ctx.drawImage(tempCanvas, x, y);
           }
 
-          try {
-            // Save to Firestore
-            await saveFolderIcon({
-              userId: user.uid,
-              name: folderName,
-              folderColor,
-              overlayImage,
-              imageSettings: {
-                size: imageSize,
-                brightness,
-                contrast,
-                saturation,
-                opacity,
-                hue,
-                blur,
-                positionX,
-                positionY,
-                positionZ
-              }
-            });
-            toast.success('Icône sauvegardée avec succès !');
-            
-            // Export as PNG
-            const url = canvas.toDataURL('image/png');
-            const link = document.createElement('a');
-            link.download = `${folderName}.png`;
-            link.href = url;
-            link.click();
-          } catch (error) {
-            toast.error('Erreur lors de la sauvegarde');
+          // Sauvegarder dans Firestore si l'utilisateur est connecté
+          if (user) {
+            try {
+              await saveFolderIcon({
+                userId: user.uid,
+                name: folderName,
+                folderColor,
+                overlayImage,
+                imageSettings: {
+                  size: imageSize,
+                  brightness,
+                  contrast,
+                  saturation,
+                  opacity,
+                  hue,
+                  blur,
+                  positionX,
+                  positionY,
+                  positionZ
+                }
+              });
+              toast.success('Icône sauvegardée avec succès !');
+            } catch (error) {
+              toast.error('Erreur lors de la sauvegarde');
+            }
           }
-        };
-        img.src = overlayImage;
-      } else {
-        try {
-          // Save to Firestore without overlay
-          await saveFolderIcon({
-            userId: user.uid,
-            name: folderName,
-            folderColor
-          });
-          toast.success('Icône sauvegardée avec succès !');
-          
-          // Export as PNG
+
+          // Exporter en PNG
           const url = canvas.toDataURL('image/png');
           const link = document.createElement('a');
           link.download = `${folderName}.png`;
           link.href = url;
           link.click();
-        } catch (error) {
-          toast.error('Erreur lors de la sauvegarde');
+        };
+        img.src = overlayImage;
+      } else {
+        // Si pas d'image superposée, sauvegarder et télécharger directement
+        if (user) {
+          try {
+            await saveFolderIcon({
+              userId: user.uid,
+              name: folderName,
+              folderColor
+            });
+            toast.success('Icône sauvegardée avec succès !');
+          } catch (error) {
+            toast.error('Erreur lors de la sauvegarde');
+          }
         }
+        
+        const url = canvas.toDataURL('image/png');
+        const link = document.createElement('a');
+        link.download = `${folderName}.png`;
+        link.href = url;
+        link.click();
       }
-      
-      ctx.restore();
     }
   };
 
@@ -713,17 +702,8 @@ function App() {
                 onClick={handleExport}
                 className="flex-1 flex items-center justify-center gap-3 px-6 py-4 bg-green-500 text-white rounded-xl hover:bg-green-600 transition-colors text-lg font-medium"
               >
-                {user ? (
-                  <>
-                    <Download size={24} />
-                    Sauvegarder et télécharger
-                  </>
-                ) : (
-                  <>
-                    <LogIn size={24} />
-                    Se connecter pour sauvegarder
-                  </>
-                )}
+                <Download size={24} />
+                {user ? 'Sauvegarder et télécharger' : 'Télécharger'}
               </button>
               
               {overlayImage && user && (
@@ -806,3 +786,5 @@ function App() {
 }
 
 export default App;
+
+export default App
