@@ -1,6 +1,11 @@
 import React, { useState, useRef, DragEvent } from 'react';
-import { Folder, Upload, Download, Palette, RefreshCw, Move, ZoomIn, Image as ImageIcon } from 'lucide-react';
+import { Folder, Upload, Download, Palette, Move, ZoomIn, Image as ImageIcon, LogIn, LogOut, LayoutDashboard } from 'lucide-react';
 import Draggable from 'react-draggable';
+import { useAuth } from './contexts/AuthContext';
+import { AuthModal } from './components/AuthModal';
+import { Dashboard } from './components/Dashboard';
+import { saveFolderIcon, FolderIcon } from './services/folders';
+import toast from 'react-hot-toast';
 
 function App() {
   const [folderColor, setFolderColor] = useState('#FFB900');
@@ -13,10 +18,14 @@ function App() {
   const [hue, setHue] = useState(0);
   const [blur, setBlur] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isDashboardOpen, setIsDashboardOpen] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
+  
+  const { user, logout } = useAuth();
 
   const handleImageUpload = (file: File) => {
     const reader = new FileReader();
@@ -53,7 +62,12 @@ function App() {
     }
   };
 
-  const handleExport = () => {
+  const handleExport = async () => {
+    if (!user) {
+      setIsAuthModalOpen(true);
+      return;
+    }
+
     const canvas = document.createElement('canvas');
     canvas.width = 512;
     canvas.height = 512;
@@ -155,7 +169,7 @@ function App() {
       // Add overlay image if exists
       if (overlayImage) {
         const img = new Image();
-        img.onload = () => {
+        img.onload = async () => {
           // Apply image adjustments
           const tempCanvas = document.createElement('canvas');
           tempCanvas.width = imageSize;
@@ -179,6 +193,44 @@ function App() {
             const y = (512 - imageSize) / 2;
             ctx.drawImage(tempCanvas, x, y);
           }
+
+          try {
+            // Save to Firestore
+            await saveFolderIcon({
+              userId: user.uid,
+              folderColor,
+              overlayImage,
+              imageSettings: {
+                size: imageSize,
+                brightness,
+                contrast,
+                saturation,
+                opacity,
+                hue,
+                blur
+              }
+            });
+            toast.success('Icône sauvegardée avec succès !');
+            
+            // Export as PNG
+            const url = canvas.toDataURL('image/png');
+            const link = document.createElement('a');
+            link.download = 'custom-folder.png';
+            link.href = url;
+            link.click();
+          } catch (error) {
+            toast.error('Erreur lors de la sauvegarde');
+          }
+        };
+        img.src = overlayImage;
+      } else {
+        try {
+          // Save to Firestore without overlay
+          await saveFolderIcon({
+            userId: user.uid,
+            folderColor
+          });
+          toast.success('Icône sauvegardée avec succès !');
           
           // Export as PNG
           const url = canvas.toDataURL('image/png');
@@ -186,27 +238,77 @@ function App() {
           link.download = 'custom-folder.png';
           link.href = url;
           link.click();
-        };
-        img.src = overlayImage;
-      } else {
-        // Export as PNG without overlay
-        const url = canvas.toDataURL('image/png');
-        const link = document.createElement('a');
-        link.download = 'custom-folder.png';
-        link.href = url;
-        link.click();
+        } catch (error) {
+          toast.error('Erreur lors de la sauvegarde');
+        }
       }
       
       ctx.restore();
     }
   };
 
+  const handleLogout = async () => {
+    try {
+      await logout();
+      toast.success('Déconnexion réussie');
+    } catch (error) {
+      toast.error('Erreur lors de la déconnexion');
+    }
+  };
+
+  const handleEditIcon = (icon: FolderIcon) => {
+    setFolderColor(icon.folderColor);
+    if (icon.overlayImage) {
+      setOverlayImage(icon.overlayImage);
+      if (icon.imageSettings) {
+        setImageSize(icon.imageSettings.size);
+        setBrightness(icon.imageSettings.brightness);
+        setContrast(icon.imageSettings.contrast);
+        setSaturation(icon.imageSettings.saturation);
+        setOpacity(icon.imageSettings.opacity);
+        setHue(icon.imageSettings.hue);
+        setBlur(icon.imageSettings.blur);
+      }
+    }
+    setIsDashboardOpen(false);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center p-8">
       <div className="bg-white p-12 rounded-2xl shadow-2xl max-w-4xl w-full">
-        <h1 className="text-4xl font-bold text-gray-800 mb-8 text-center">
-          Créateur d'Icônes de Dossier
-        </h1>
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-4xl font-bold text-gray-800">
+            Créateur d'Icônes de Dossier
+          </h1>
+          <div className="flex items-center gap-4">
+            {user && (
+              <button
+                onClick={() => setIsDashboardOpen(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+              >
+                <LayoutDashboard size={20} />
+                Tableau de bord
+              </button>
+            )}
+            {user ? (
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                <LogOut size={20} />
+                Se déconnecter
+              </button>
+            ) : (
+              <button
+                onClick={() => setIsAuthModalOpen(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+              >
+                <LogIn size={20} />
+                Se connecter
+              </button>
+            )}
+          </div>
+        </div>
 
         <div className="flex flex-col lg:flex-row gap-12 items-start">
           <div 
@@ -412,12 +514,33 @@ function App() {
               onClick={handleExport}
               className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-green-500 text-white rounded-xl hover:bg-green-600 transition-colors text-lg font-medium"
             >
-              <Download size={24} />
-              Télécharger
+              {user ? (
+                <>
+                  <Download size={24} />
+                  Sauvegarder et télécharger
+                </>
+              ) : (
+                <>
+                  <LogIn size={24} />
+                  Se connecter pour sauvegarder
+                </>
+              )}
             </button>
           </div>
         </div>
       </div>
+
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+      />
+
+      {isDashboardOpen && (
+        <Dashboard
+          onClose={() => setIsDashboardOpen(false)}
+          onEdit={handleEditIcon}
+        />
+      )}
     </div>
   );
 }
