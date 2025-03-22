@@ -54,14 +54,14 @@ export const defaultOverlaySettings: OverlaySettings = {
   image: '',
   x: 0,
   y: 0,
-  scale: 100
+  scale: 50
 };
 
 export const defaultTextSettings: TextSettings = {
   text: '',
   x: 0,
   y: 0,
-  size: 24,
-  color: '#ffffff',
+  size: 32,
+  color: '#000000',
   fontFamily: 'Arial'
 };

@@ -217,20 +217,20 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center p-8">
-      <div className="bg-white p-12 rounded-2xl shadow-2xl max-w-6xl w-full">
+    <div className="min-h-screen bg-[#0a0a1f] text-white flex items-center justify-center p-4">
+      <div className="bg-[#1a1a3a] backdrop-blur-xl bg-opacity-80 p-8 rounded-3xl shadow-2xl max-w-7xl w-full border border-[#2a2a5a]">
         <div className="flex justify-between items-center mb-8">
           <div className="flex items-center gap-4">
             {selectedImage && (
               <button
                 onClick={handleBackClick}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                className="flex items-center gap-2 px-4 py-2 bg-[#2a2a5a] hover:bg-[#3a3a7a] rounded-xl transition-all duration-300"
               >
                 <ArrowLeft size={20} />
                 Retour
               </button>
             )}
-            <h1 className="text-4xl font-bold text-gray-800">
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
               Créateur d'Icônes de Dossier
             </h1>
           </div>
@@ -238,7 +238,7 @@ function App() {
             {user && (
               <button
                 onClick={() => setIsDashboardOpen(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 rounded-xl transition-all duration-300"
               >
                 <LayoutDashboard size={20} />
                 Tableau de bord
@@ -247,7 +247,7 @@ function App() {
             {user ? (
               <button
                 onClick={handleLogout}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                className="flex items-center gap-2 px-4 py-2 bg-[#2a2a5a] hover:bg-[#3a3a7a] rounded-xl transition-all duration-300"
               >
                 <LogOut size={20} />
                 Se déconnecter
@@ -255,7 +255,7 @@ function App() {
             ) : (
               <button
                 onClick={() => setIsAuthModalOpen(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 rounded-xl transition-all duration-300"
               >
                 <LogIn size={20} />
                 Se connecter
@@ -265,17 +265,18 @@ function App() {
         </div>
 
         {!selectedImage ? (
-          <div className="grid grid-cols-5 gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
             {folderImages.map((image, index) => (
               <button
                 key={index}
                 onClick={() => handleImageSelect(image)}
-                className="relative w-full aspect-square rounded-xl border-2 border-gray-200 hover:border-gray-300 transition-all p-4"
+                className="group relative aspect-square rounded-2xl border-2 border-[#2a2a5a] hover:border-blue-500 transition-all duration-300 p-4 bg-[#1a1a3a] hover:bg-[#2a2a5a] overflow-hidden"
               >
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                 <img
                   src={image}
                   alt={`Dossier ${index + 1}`}
-                  className="w-full h-full object-contain"
+                  className="w-full h-full object-contain transform group-hover:scale-105 transition-transform duration-300"
                 />
               </button>
             ))}
@@ -284,7 +285,7 @@ function App() {
           <div className="flex gap-6">
             <div className="flex-1">
               <div className="mb-6">
-                <label className="block text-lg font-medium text-gray-700 mb-3">
+                <label className="block text-lg font-medium mb-3">
                   Nom du dossier
                 </label>
                 <input
@@ -295,11 +296,11 @@ function App() {
                     setHasUnsavedChanges(true);
                   }}
                   placeholder="Mon dossier"
-                  className="w-full p-3 border rounded-lg"
+                  className="w-full p-3 bg-[#2a2a5a] border border-[#3a3a7a] rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-300"
                 />
               </div>
 
-              <div className="relative aspect-square rounded-xl border-2 border-gray-200 p-4 mb-6">
+              <div className="relative aspect-square rounded-2xl border-2 border-[#2a2a5a] p-4 mb-6 bg-[#1a1a3a]">
                 <img
                   src={selectedImage}
                   alt="Aperçu"
@@ -314,45 +315,55 @@ function App() {
                   }}
                 />
                 {overlaySettings.image && (
-                  <Draggable
-                    position={{ x: overlaySettings.x, y: overlaySettings.y }}
-                    onDrag={(e, data) => handleDrag('image', data)}
-                  >
-                    <img
-                      src={overlaySettings.image}
-                      alt="Superposition"
-                      className="absolute cursor-move"
-                      style={{
-                        transform: `translate(-50%, -50%) scale(${overlaySettings.scale / 100})`,
-                        touchAction: 'none'
-                      }}
-                    />
-                  </Draggable>
+                  <div className="absolute inset-0 pointer-events-none">
+                    <Draggable
+                      position={{ x: overlaySettings.x, y: overlaySettings.y }}
+                      onDrag={(e, data) => handleDrag('image', data)}
+                    >
+                      <img
+                        src={overlaySettings.image}
+                        alt="Superposition"
+                        className="absolute cursor-move pointer-events-auto"
+                        style={{
+                          transform: `translate(-50%, -50%) scale(${overlaySettings.scale / 100})`,
+                          width: '200px',
+                          height: '200px',
+                          objectFit: 'contain',
+                          touchAction: 'none',
+                          zIndex: 10
+                        }}
+                      />
+                    </Draggable>
+                  </div>
                 )}
                 {textSettings.text && (
-                  <Draggable
-                    position={{ x: textSettings.x, y: textSettings.y }}
-                    onDrag={(e, data) => handleDrag('text', data)}
-                  >
-                    <div
-                      className="absolute cursor-move"
-                      style={{
-                        transform: 'translate(-50%, -50%)',
-                        color: textSettings.color,
-                        fontFamily: textSettings.fontFamily,
-                        fontSize: `${textSettings.size}px`,
-                        touchAction: 'none'
-                      }}
+                  <div className="absolute inset-0 pointer-events-none">
+                    <Draggable
+                      position={{ x: textSettings.x, y: textSettings.y }}
+                      onDrag={(e, data) => handleDrag('text', data)}
                     >
-                      {textSettings.text}
-                    </div>
-                  </Draggable>
+                      <div
+                        className="absolute cursor-move pointer-events-auto"
+                        style={{
+                          transform: 'translate(-50%, -50%)',
+                          color: textSettings.color,
+                          fontFamily: textSettings.fontFamily,
+                          fontSize: `${textSettings.size}px`,
+                          touchAction: 'none',
+                          zIndex: 20,
+                          textShadow: '0 0 10px rgba(0,0,0,0.3)'
+                        }}
+                      >
+                        {textSettings.text}
+                      </div>
+                    </Draggable>
+                  </div>
                 )}
               </div>
 
               <button
                 onClick={handleExport}
-                className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-green-500 text-white rounded-xl hover:bg-green-600 transition-colors text-lg font-medium"
+                className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 rounded-xl transition-all duration-300 text-lg font-medium shadow-lg hover:shadow-xl"
               >
                 <Download size={24} />
                 {user ? 'Sauvegarder et télécharger' : 'Télécharger'}
@@ -360,7 +371,7 @@ function App() {
             </div>
 
             <div className="flex">
-              <div className="w-80 bg-white border-y border-l border-gray-200 rounded-l-xl overflow-y-auto">
+              <div className="w-80 bg-[#1a1a3a] border-y border-l border-[#2a2a5a] rounded-l-xl overflow-y-auto">
                 {renderToolPanel()}
               </div>
               <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
@@ -370,18 +381,18 @@ function App() {
       </div>
 
       {showConfirmModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-[#1a1a3a] rounded-2xl p-6 max-w-md w-full mx-4 border border-[#2a2a5a]">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl font-semibold">Modifications non sauvegardées</h3>
               <button
                 onClick={() => setShowConfirmModal(false)}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-400 hover:text-gray-200 transition-colors"
               >
                 <X size={24} />
               </button>
             </div>
-            <p className="text-gray-600 mb-6">
+            <p className="text-gray-300 mb-6">
               Vous avez des modifications non sauvegardées. Que souhaitez-vous faire ?
             </p>
             <div className="flex justify-end gap-4">
@@ -391,13 +402,13 @@ function App() {
                   setSelectedImage(null);
                   resetSettings();
                 }}
-                className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg"
+                className="px-4 py-2 text-red-400 hover:bg-red-500/10 rounded-xl transition-all duration-300"
               >
                 Abandonner
               </button>
               <button
                 onClick={handleExport}
-                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                className="px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 rounded-xl transition-all duration-300"
               >
                 Sauvegarder
               </button>
