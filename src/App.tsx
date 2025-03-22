@@ -82,10 +82,12 @@ function App() {
     
     if (ctx) {
       try {
+        // Charger l'image principale
         const mainImg = new Image();
         mainImg.crossOrigin = 'anonymous';
         
         mainImg.onload = async () => {
+          // Appliquer les filtres à l'image principale
           ctx.filter = `
             brightness(${imageSettings.brightness}%)
             contrast(${imageSettings.contrast}%)
@@ -93,39 +95,52 @@ function App() {
             hue-rotate(${imageSettings.hue}deg)
           `;
 
+          // Dessiner l'image principale
           ctx.drawImage(mainImg, 0, 0, canvas.width, canvas.height);
 
+          // Réinitialiser les filtres
+          ctx.filter = 'none';
+
+          // Gérer l'image superposée
           if (overlaySettings.image) {
             const overlayImg = new Image();
             overlayImg.crossOrigin = 'anonymous';
             
             overlayImg.onload = () => {
+              // Calculer les positions centrées
+              const centerX = canvas.width / 2;
+              const centerY = canvas.height / 2;
+              const scale = overlaySettings.scale / 100;
+
               ctx.save();
+              // Appliquer la transformation pour l'image superposée
               ctx.translate(
-                canvas.width / 2 + overlaySettings.x,
-                canvas.height / 2 + overlaySettings.y
+                centerX + overlaySettings.x,
+                centerY + overlaySettings.y
               );
-              ctx.scale(overlaySettings.scale / 100, overlaySettings.scale / 100);
+              ctx.scale(scale, scale);
+
+              // Dessiner l'image superposée centrée
               ctx.drawImage(
                 overlayImg,
                 -overlayImg.width / 2,
-                -overlayImg.height / 2,
-                overlayImg.width,
-                overlayImg.height
+                -overlayImg.height / 2
               );
               ctx.restore();
 
-              // Ajout du texte après l'image superposée
+              // Ajouter le texte après l'image superposée
               if (textSettings.text) {
                 ctx.save();
                 ctx.font = `${textSettings.size}px ${textSettings.fontFamily}`;
                 ctx.fillStyle = textSettings.color;
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
+
+                // Dessiner le texte à la position calculée
                 ctx.fillText(
                   textSettings.text,
-                  canvas.width / 2 + textSettings.x,
-                  canvas.height / 2 + textSettings.y
+                  centerX + textSettings.x,
+                  centerY + textSettings.y
                 );
                 ctx.restore();
               }
@@ -133,20 +148,23 @@ function App() {
               finishExport();
             };
             overlayImg.src = overlaySettings.image;
+          } else if (textSettings.text) {
+            // Si pas d'image superposée mais du texte
+            ctx.save();
+            ctx.font = `${textSettings.size}px ${textSettings.fontFamily}`;
+            ctx.fillStyle = textSettings.color;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            // Dessiner le texte à la position calculée
+            ctx.fillText(
+              textSettings.text,
+              canvas.width / 2 + textSettings.x,
+              canvas.height / 2 + textSettings.y
+            );
+            ctx.restore();
+            finishExport();
           } else {
-            if (textSettings.text) {
-              ctx.save();
-              ctx.font = `${textSettings.size}px ${textSettings.fontFamily}`;
-              ctx.fillStyle = textSettings.color;
-              ctx.textAlign = 'center';
-              ctx.textBaseline = 'middle';
-              ctx.fillText(
-                textSettings.text,
-                canvas.width / 2 + textSettings.x,
-                canvas.height / 2 + textSettings.y
-              );
-              ctx.restore();
-            }
             finishExport();
           }
         };
@@ -336,22 +354,22 @@ function App() {
                 </div>
 
                 <div className="relative flex-1 rounded-2xl border-2 border-[#2a2a5a] p-4 mb-6 bg-[#1a1a3a] flex items-center justify-center">
-                  <img
-                    src={selectedImage}
-                    alt="Aperçu"
-                    className="max-w-full max-h-full object-contain"
-                    crossOrigin="anonymous"
-                    style={{
-                      filter: `
-                        brightness(${imageSettings.brightness}%)
-                        contrast(${imageSettings.contrast}%)
-                        saturate(${imageSettings.saturation}%)
-                        hue-rotate(${imageSettings.hue}deg)
-                      `
-                    }}
-                  />
-                  {overlaySettings.image && (
-                    <div className="absolute inset-0 pointer-events-none">
+                  <div className="relative w-full h-full flex items-center justify-center">
+                    <img
+                      src={selectedImage}
+                      alt="Aperçu"
+                      className="max-w-full max-h-full object-contain"
+                      crossOrigin="anonymous"
+                      style={{
+                        filter: `
+                          brightness(${imageSettings.brightness}%)
+                          contrast(${imageSettings.contrast}%)
+                          saturate(${imageSettings.saturation}%)
+                          hue-rotate(${imageSettings.hue}deg)
+                        `
+                      }}
+                    />
+                    {overlaySettings.image && (
                       <Draggable
                         position={{ x: overlaySettings.x, y: overlaySettings.y }}
                         onDrag={(e, data) => handleDrag('image', data)}
@@ -371,10 +389,8 @@ function App() {
                           }}
                         />
                       </Draggable>
-                    </div>
-                  )}
-                  {textSettings.text && (
-                    <div className="absolute inset-0 pointer-events-none">
+                    )}
+                    {textSettings.text && (
                       <Draggable
                         position={{ x: textSettings.x, y: textSettings.y }}
                         onDrag={(e, data) => handleDrag('text', data)}
@@ -395,8 +411,8 @@ function App() {
                           {textSettings.text}
                         </div>
                       </Draggable>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
 
                 <button
