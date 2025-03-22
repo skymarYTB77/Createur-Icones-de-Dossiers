@@ -1,5 +1,5 @@
 import React from 'react';
-import { Type, Image } from 'lucide-react';
+import { Type, Image, Pencil, Square, Circle, Triangle } from 'lucide-react';
 
 interface SidebarProps {
   activeTab: string;
@@ -9,23 +9,25 @@ interface SidebarProps {
 export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
   const tools = [
     { id: 'text', icon: Type, label: 'Texte' },
-    { id: 'image', icon: Image, label: 'Image' }
+    { id: 'image', icon: Image, label: 'Image' },
+    { id: 'draw', icon: Pencil, label: 'Dessin' },
+    { id: 'shapes', icon: Square, label: 'Formes' }
   ];
 
   return (
-    <div className="w-64 bg-gray-100 border-l border-gray-200 flex flex-col items-center py-4">
+    <div className="w-20 bg-gray-800 border-l border-gray-700 flex flex-col items-center py-4">
       {tools.map((tool) => (
         <button
           key={tool.id}
           onClick={() => onTabChange(tool.id)}
-          className={`w-full h-16 mb-2 flex items-center justify-center gap-2 rounded-lg transition-colors ${
+          className={`w-16 h-16 mb-2 flex flex-col items-center justify-center rounded-lg transition-colors ${
             activeTab === tool.id
-              ? 'bg-blue-500 text-white'
-              : 'text-gray-600 hover:bg-gray-200'
+              ? 'bg-indigo-600 text-white'
+              : 'text-gray-400 hover:bg-gray-700 hover:text-white'
           }`}
         >
           <tool.icon size={24} />
-          <span>{tool.label}</span>
+          <span className="text-xs mt-1">{tool.label}</span>
         </button>
       ))}
     </div>
