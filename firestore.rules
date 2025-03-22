@@ -1,18 +1,22 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /folderIcons/{document} {
-      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
-      allow read: if request.auth != null && request.auth.uid == resource.data.userId;
-      allow delete: if request.auth != null && request.auth.uid == resource.data.userId;
-      allow update: if request.auth != null && request.auth.uid == resource.data.userId;
+    // Fonction pour vérifier si l'utilisateur est admin
+    function isAdmin() {
+      return request.auth != null && request.auth.uid in ['VOTRE_UID_ADMIN'];
     }
     
-    match /presets/{document} {
-      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+    // Collection des styles de dossiers
+    match /folderStyles/{styleId} {
+      allow read: if true; // Tout le monde peut lire les styles
+      allow write: if isAdmin(); // Seuls les admins peuvent modifier
+    }
+    
+    // Collection des icônes de dossiers
+    match /folderIcons/{iconId} {
       allow read: if request.auth != null && request.auth.uid == resource.data.userId;
-      allow delete: if request.auth != null && request.auth.uid == resource.data.userId;
-      allow update: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+      allow update, delete: if request.auth != null && request.auth.uid == resource.data.userId;
     }
   }
 }
