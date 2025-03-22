@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { TextTool } from './components/tools/TextTool';
 import { ImageTool } from './components/tools/ImageTool';
@@ -81,78 +81,111 @@ function App() {
     const ctx = canvas.getContext('2d');
     
     if (ctx) {
-      const mainImg = new Image();
-      mainImg.onload = async () => {
-        ctx.filter = `
-          brightness(${imageSettings.brightness}%)
-          contrast(${imageSettings.contrast}%)
-          saturate(${imageSettings.saturation}%)
-          hue-rotate(${imageSettings.hue}deg)
-        `;
+      try {
+        const mainImg = new Image();
+        mainImg.crossOrigin = 'anonymous';
+        
+        mainImg.onload = async () => {
+          ctx.filter = `
+            brightness(${imageSettings.brightness}%)
+            contrast(${imageSettings.contrast}%)
+            saturate(${imageSettings.saturation}%)
+            hue-rotate(${imageSettings.hue}deg)
+          `;
 
-        ctx.drawImage(mainImg, 0, 0, canvas.width, canvas.height);
+          ctx.drawImage(mainImg, 0, 0, canvas.width, canvas.height);
 
-        if (overlaySettings.image) {
-          const overlayImg = new Image();
-          overlayImg.onload = () => {
-            ctx.save();
-            ctx.translate(
-              canvas.width / 2 + overlaySettings.x,
-              canvas.height / 2 + overlaySettings.y
-            );
-            ctx.scale(overlaySettings.scale / 100, overlaySettings.scale / 100);
-            ctx.drawImage(
-              overlayImg,
-              -overlayImg.width / 2,
-              -overlayImg.height / 2,
-              overlayImg.width,
-              overlayImg.height
-            );
-            ctx.restore();
-          };
-          overlayImg.src = overlaySettings.image;
-        }
+          if (overlaySettings.image) {
+            const overlayImg = new Image();
+            overlayImg.crossOrigin = 'anonymous';
+            
+            overlayImg.onload = () => {
+              ctx.save();
+              ctx.translate(
+                canvas.width / 2 + overlaySettings.x,
+                canvas.height / 2 + overlaySettings.y
+              );
+              ctx.scale(overlaySettings.scale / 100, overlaySettings.scale / 100);
+              ctx.drawImage(
+                overlayImg,
+                -overlayImg.width / 2,
+                -overlayImg.height / 2,
+                overlayImg.width,
+                overlayImg.height
+              );
+              ctx.restore();
 
-        if (textSettings.text) {
-          ctx.save();
-          ctx.font = `${textSettings.size}px ${textSettings.fontFamily}`;
-          ctx.fillStyle = textSettings.color;
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText(
-            textSettings.text,
-            canvas.width / 2 + textSettings.x,
-            canvas.height / 2 + textSettings.y
-          );
-          ctx.restore();
-        }
+              // Ajout du texte après l'image superposée
+              if (textSettings.text) {
+                ctx.save();
+                ctx.font = `${textSettings.size}px ${textSettings.fontFamily}`;
+                ctx.fillStyle = textSettings.color;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(
+                  textSettings.text,
+                  canvas.width / 2 + textSettings.x,
+                  canvas.height / 2 + textSettings.y
+                );
+                ctx.restore();
+              }
 
-        if (user) {
-          try {
-            await saveFolderIcon({
-              userId: user.uid,
-              name: folderName,
-              image: selectedImage,
-              imageSettings,
-              overlayImage: overlaySettings.image ? overlaySettings : null,
-              overlayText: textSettings.text ? textSettings : null,
-              drawing: null,
-              shapes: null
-            });
-            toast.success('Icône sauvegardée avec succès !');
-            setHasUnsavedChanges(false);
-          } catch (error) {
-            toast.error('Erreur lors de la sauvegarde');
+              finishExport();
+            };
+            overlayImg.src = overlaySettings.image;
+          } else {
+            if (textSettings.text) {
+              ctx.save();
+              ctx.font = `${textSettings.size}px ${textSettings.fontFamily}`;
+              ctx.fillStyle = textSettings.color;
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.fillText(
+                textSettings.text,
+                canvas.width / 2 + textSettings.x,
+                canvas.height / 2 + textSettings.y
+              );
+              ctx.restore();
+            }
+            finishExport();
           }
-        }
+        };
 
-        const url = canvas.toDataURL('image/png');
-        const link = document.createElement('a');
-        link.download = `${folderName}.png`;
-        link.href = url;
-        link.click();
-      };
-      mainImg.src = selectedImage;
+        const finishExport = async () => {
+          if (user) {
+            try {
+              await saveFolderIcon({
+                userId: user.uid,
+                name: folderName,
+                image: selectedImage,
+                imageSettings,
+                overlayImage: overlaySettings.image ? overlaySettings : null,
+                overlayText: textSettings.text ? textSettings : null,
+                drawing: null,
+                shapes: null
+              });
+              toast.success('Icône sauvegardée avec succès !');
+              setHasUnsavedChanges(false);
+            } catch (error) {
+              toast.error('Erreur lors de la sauvegarde');
+            }
+          }
+
+          try {
+            const url = canvas.toDataURL('image/png');
+            const link = document.createElement('a');
+            link.download = `${folderName}.png`;
+            link.href = url;
+            link.click();
+          } catch (error) {
+            toast.error('Erreur lors de l\'exportation de l\'image');
+          }
+        };
+
+        mainImg.src = selectedImage;
+      } catch (error) {
+        toast.error('Erreur lors de la génération de l\'image');
+      }
     }
   };
 
@@ -217,167 +250,173 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0a1f] text-white flex items-center justify-center p-4">
-      <div className="bg-[#1a1a3a] backdrop-blur-xl bg-opacity-80 p-8 rounded-3xl shadow-2xl max-w-7xl w-full border border-[#2a2a5a]">
-        <div className="flex justify-between items-center mb-8">
-          <div className="flex items-center gap-4">
-            {selectedImage && (
-              <button
-                onClick={handleBackClick}
-                className="flex items-center gap-2 px-4 py-2 bg-[#2a2a5a] hover:bg-[#3a3a7a] rounded-xl transition-all duration-300"
-              >
-                <ArrowLeft size={20} />
-                Retour
-              </button>
-            )}
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-              Créateur d'Icônes de Dossier
-            </h1>
+    <div className="min-h-screen bg-[#0a0a1f] text-white flex items-center justify-center">
+      <div className="bg-[#1a1a3a] backdrop-blur-xl bg-opacity-80 w-full min-h-screen border border-[#2a2a5a]">
+        <div className="p-4 flex flex-col h-screen">
+          <div className="flex justify-between items-center mb-8">
+            <div className="flex items-center gap-4">
+              {selectedImage && (
+                <button
+                  onClick={handleBackClick}
+                  className="flex items-center gap-2 px-4 py-2 bg-[#2a2a5a] hover:bg-[#3a3a7a] rounded-xl transition-all duration-300"
+                >
+                  <ArrowLeft size={20} />
+                  Retour
+                </button>
+              )}
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                Créateur d'Icônes de Dossier
+              </h1>
+            </div>
+            <div className="flex items-center gap-4">
+              {user && (
+                <button
+                  onClick={() => setIsDashboardOpen(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 rounded-xl transition-all duration-300"
+                >
+                  <LayoutDashboard size={20} />
+                  Tableau de bord
+                </button>
+              )}
+              {user ? (
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center gap-2 px-4 py-2 bg-[#2a2a5a] hover:bg-[#3a3a7a] rounded-xl transition-all duration-300"
+                >
+                  <LogOut size={20} />
+                  Se déconnecter
+                </button>
+              ) : (
+                <button
+                  onClick={() => setIsAuthModalOpen(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 rounded-xl transition-all duration-300"
+                >
+                  <LogIn size={20} />
+                  Se connecter
+                </button>
+              )}
+            </div>
           </div>
-          <div className="flex items-center gap-4">
-            {user && (
-              <button
-                onClick={() => setIsDashboardOpen(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 rounded-xl transition-all duration-300"
-              >
-                <LayoutDashboard size={20} />
-                Tableau de bord
-              </button>
-            )}
-            {user ? (
-              <button
-                onClick={handleLogout}
-                className="flex items-center gap-2 px-4 py-2 bg-[#2a2a5a] hover:bg-[#3a3a7a] rounded-xl transition-all duration-300"
-              >
-                <LogOut size={20} />
-                Se déconnecter
-              </button>
-            ) : (
-              <button
-                onClick={() => setIsAuthModalOpen(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 rounded-xl transition-all duration-300"
-              >
-                <LogIn size={20} />
-                Se connecter
-              </button>
-            )}
-          </div>
-        </div>
 
-        {!selectedImage ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
-            {folderImages.map((image, index) => (
-              <button
-                key={index}
-                onClick={() => handleImageSelect(image)}
-                className="group relative aspect-square rounded-2xl border-2 border-[#2a2a5a] hover:border-blue-500 transition-all duration-300 p-4 bg-[#1a1a3a] hover:bg-[#2a2a5a] overflow-hidden"
-              >
-                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                <img
-                  src={image}
-                  alt={`Dossier ${index + 1}`}
-                  className="w-full h-full object-contain transform group-hover:scale-105 transition-transform duration-300"
-                />
-              </button>
-            ))}
-          </div>
-        ) : (
-          <div className="flex gap-6">
-            <div className="flex-1">
-              <div className="mb-6">
-                <label className="block text-lg font-medium mb-3">
-                  Nom du dossier
-                </label>
-                <input
-                  type="text"
-                  value={folderName}
-                  onChange={(e) => {
-                    setFolderName(e.target.value);
-                    setHasUnsavedChanges(true);
-                  }}
-                  placeholder="Mon dossier"
-                  className="w-full p-3 bg-[#2a2a5a] border border-[#3a3a7a] rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-300"
-                />
-              </div>
+          {!selectedImage ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6 flex-1 overflow-y-auto p-4">
+              {folderImages.map((image, index) => (
+                <button
+                  key={index}
+                  onClick={() => handleImageSelect(image)}
+                  className="group relative aspect-square rounded-2xl border-2 border-[#2a2a5a] hover:border-blue-500 transition-all duration-300 p-4 bg-[#1a1a3a] hover:bg-[#2a2a5a] overflow-hidden"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  <img
+                    src={image}
+                    alt={`Dossier ${index + 1}`}
+                    className="w-full h-full object-contain transform group-hover:scale-105 transition-transform duration-300"
+                    crossOrigin="anonymous"
+                  />
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="flex gap-6 flex-1">
+              <div className="flex-1 flex flex-col">
+                <div className="mb-6">
+                  <label className="block text-lg font-medium mb-3">
+                    Nom du dossier
+                  </label>
+                  <input
+                    type="text"
+                    value={folderName}
+                    onChange={(e) => {
+                      setFolderName(e.target.value);
+                      setHasUnsavedChanges(true);
+                    }}
+                    placeholder="Mon dossier"
+                    className="w-full p-3 bg-[#2a2a5a] border border-[#3a3a7a] rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-300 text-white"
+                  />
+                </div>
 
-              <div className="relative aspect-square rounded-2xl border-2 border-[#2a2a5a] p-4 mb-6 bg-[#1a1a3a]">
-                <img
-                  src={selectedImage}
-                  alt="Aperçu"
-                  className="w-full h-full object-contain"
-                  style={{
-                    filter: `
-                      brightness(${imageSettings.brightness}%)
-                      contrast(${imageSettings.contrast}%)
-                      saturate(${imageSettings.saturation}%)
-                      hue-rotate(${imageSettings.hue}deg)
-                    `
-                  }}
-                />
-                {overlaySettings.image && (
-                  <div className="absolute inset-0 pointer-events-none">
-                    <Draggable
-                      position={{ x: overlaySettings.x, y: overlaySettings.y }}
-                      onDrag={(e, data) => handleDrag('image', data)}
-                    >
-                      <img
-                        src={overlaySettings.image}
-                        alt="Superposition"
-                        className="absolute cursor-move pointer-events-auto"
-                        style={{
-                          transform: `translate(-50%, -50%) scale(${overlaySettings.scale / 100})`,
-                          width: '200px',
-                          height: '200px',
-                          objectFit: 'contain',
-                          touchAction: 'none',
-                          zIndex: 10
-                        }}
-                      />
-                    </Draggable>
-                  </div>
-                )}
-                {textSettings.text && (
-                  <div className="absolute inset-0 pointer-events-none">
-                    <Draggable
-                      position={{ x: textSettings.x, y: textSettings.y }}
-                      onDrag={(e, data) => handleDrag('text', data)}
-                    >
-                      <div
-                        className="absolute cursor-move pointer-events-auto"
-                        style={{
-                          transform: 'translate(-50%, -50%)',
-                          color: textSettings.color,
-                          fontFamily: textSettings.fontFamily,
-                          fontSize: `${textSettings.size}px`,
-                          touchAction: 'none',
-                          zIndex: 20,
-                          textShadow: '0 0 10px rgba(0,0,0,0.3)'
-                        }}
+                <div className="relative flex-1 rounded-2xl border-2 border-[#2a2a5a] p-4 mb-6 bg-[#1a1a3a] flex items-center justify-center">
+                  <img
+                    src={selectedImage}
+                    alt="Aperçu"
+                    className="max-w-full max-h-full object-contain"
+                    crossOrigin="anonymous"
+                    style={{
+                      filter: `
+                        brightness(${imageSettings.brightness}%)
+                        contrast(${imageSettings.contrast}%)
+                        saturate(${imageSettings.saturation}%)
+                        hue-rotate(${imageSettings.hue}deg)
+                      `
+                    }}
+                  />
+                  {overlaySettings.image && (
+                    <div className="absolute inset-0 pointer-events-none">
+                      <Draggable
+                        position={{ x: overlaySettings.x, y: overlaySettings.y }}
+                        onDrag={(e, data) => handleDrag('image', data)}
                       >
-                        {textSettings.text}
-                      </div>
-                    </Draggable>
-                  </div>
-                )}
+                        <img
+                          src={overlaySettings.image}
+                          alt="Superposition"
+                          className="absolute cursor-move pointer-events-auto"
+                          crossOrigin="anonymous"
+                          style={{
+                            transform: `translate(-50%, -50%) scale(${overlaySettings.scale / 100})`,
+                            width: '200px',
+                            height: '200px',
+                            objectFit: 'contain',
+                            touchAction: 'none',
+                            zIndex: 10
+                          }}
+                        />
+                      </Draggable>
+                    </div>
+                  )}
+                  {textSettings.text && (
+                    <div className="absolute inset-0 pointer-events-none">
+                      <Draggable
+                        position={{ x: textSettings.x, y: textSettings.y }}
+                        onDrag={(e, data) => handleDrag('text', data)}
+                      >
+                        <div
+                          className="absolute cursor-move pointer-events-auto"
+                          style={{
+                            transform: 'translate(-50%, -50%)',
+                            color: textSettings.color,
+                            fontFamily: textSettings.fontFamily,
+                            fontSize: `${textSettings.size}px`,
+                            touchAction: 'none',
+                            zIndex: 20,
+                            textShadow: '0 0 10px rgba(0,0,0,0.3)',
+                            whiteSpace: 'nowrap'
+                          }}
+                        >
+                          {textSettings.text}
+                        </div>
+                      </Draggable>
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  onClick={handleExport}
+                  className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 rounded-xl transition-all duration-300 text-lg font-medium shadow-lg hover:shadow-xl"
+                >
+                  <Download size={24} />
+                  {user ? 'Sauvegarder et télécharger' : 'Télécharger'}
+                </button>
               </div>
 
-              <button
-                onClick={handleExport}
-                className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 rounded-xl transition-all duration-300 text-lg font-medium shadow-lg hover:shadow-xl"
-              >
-                <Download size={24} />
-                {user ? 'Sauvegarder et télécharger' : 'Télécharger'}
-              </button>
-            </div>
-
-            <div className="flex">
-              <div className="w-80 bg-[#1a1a3a] border-y border-l border-[#2a2a5a] rounded-l-xl overflow-y-auto">
-                {renderToolPanel()}
+              <div className="flex">
+                <div className="w-80 bg-[#1a1a3a] border-y border-l border-[#2a2a5a] rounded-l-xl overflow-y-auto">
+                  {renderToolPanel()}
+                </div>
+                <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
               </div>
-              <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {showConfirmModal && (

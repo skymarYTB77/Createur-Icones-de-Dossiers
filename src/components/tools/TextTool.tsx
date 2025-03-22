@@ -20,7 +20,7 @@ export function TextTool({ settings, onChange }: TextToolProps) {
           type="text"
           value={settings.text}
           onChange={(e) => onChange({ ...settings, text: e.target.value })}
-          className="w-full px-3 py-2 border rounded-md"
+          className="w-full px-3 py-2 border rounded-md text-gray-900"
           placeholder="Entrez votre texte"
         />
       </div>
@@ -32,11 +32,14 @@ export function TextTool({ settings, onChange }: TextToolProps) {
         <input
           type="range"
           min="8"
-          max="72"
+          max="120"
           value={settings.size}
           onChange={(e) => onChange({ ...settings, size: Number(e.target.value) })}
           className="w-full"
         />
+        <span className="text-sm text-gray-500 mt-1 block">
+          {settings.size}px
+        </span>
       </div>
 
       <div>
@@ -56,10 +59,9 @@ export function TextTool({ settings, onChange }: TextToolProps) {
         <select
           value={settings.fontFamily}
           onChange={(e) => onChange({ ...settings, fontFamily: e.target.value })}
-          className="w-full px-3 py-2 border rounded-md"
+          className="w-full px-3 py-2 border rounded-md text-gray-900"
         >
           <option value="Arial">Arial</option>
-          <option value="Helvetica">Helvetica</option>
           <option value="Times New Roman">Times New Roman</option>
           <option value="Georgia">Georgia</option>
           <option value="Courier New">Courier New</option>

@@ -67,11 +67,14 @@ export function ImageTool({ settings, onChange }: ImageToolProps) {
             <input
               type="range"
               min="10"
-              max="70"
+              max="300"
               value={settings.scale}
               onChange={(e) => onChange({ ...settings, scale: Number(e.target.value) })}
               className="w-full"
             />
+            <span className="text-sm text-gray-500 mt-1 block">
+              {settings.scale}%
+            </span>
           </div>
         </>
       )}
