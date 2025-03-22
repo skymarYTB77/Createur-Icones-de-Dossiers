@@ -7,40 +7,9 @@ import {
   getDocs, 
   deleteDoc, 
   doc, 
-  updateDoc,
-  DocumentData 
+  updateDoc 
 } from 'firebase/firestore';
-
-export interface ImageSettings {
-  size: number;
-  brightness: number;
-  contrast: number;
-  saturation: number;
-  opacity: number;
-  hue: number;
-  blur: number;
-  positionX: number;
-  positionY: number;
-  positionZ: number;
-}
-
-export interface FolderIcon {
-  id?: string;
-  userId: string;
-  name: string;
-  folderColor: string;
-  overlayImage?: string;
-  imageSettings?: ImageSettings;
-  createdAt?: Date;
-}
-
-export interface Preset {
-  id?: string;
-  userId: string;
-  name: string;
-  imageSettings: ImageSettings;
-  createdAt?: Date;
-}
+import { FolderIcon } from '../types/folder';
 
 export const saveFolderIcon = async (folderIcon: Omit<FolderIcon, 'createdAt'>) => {
   try {
@@ -95,46 +64,6 @@ export const updateFolderIcon = async (iconId: string, data: Partial<FolderIcon>
     await updateDoc(docRef, data);
   } catch (error) {
     console.error('Error updating folder icon:', error);
-    throw error;
-  }
-};
-
-export const savePreset = async (preset: Omit<Preset, 'createdAt'>) => {
-  try {
-    const docRef = await addDoc(collection(db, 'presets'), {
-      ...preset,
-      createdAt: new Date()
-    });
-    return docRef.id;
-  } catch (error) {
-    console.error('Error saving preset:', error);
-    throw error;
-  }
-};
-
-export const getUserPresets = async (userId: string): Promise<Preset[]> => {
-  try {
-    const q = query(
-      collection(db, 'presets'),
-      where('userId', '==', userId)
-    );
-    
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data()
-    })) as Preset[];
-  } catch (error) {
-    console.error('Error fetching user presets:', error);
-    throw error;
-  }
-};
-
-export const deletePreset = async (presetId: string) => {
-  try {
-    await deleteDoc(doc(db, 'presets', presetId));
-  } catch (error) {
-    console.error('Error deleting preset:', error);
     throw error;
   }
 };
