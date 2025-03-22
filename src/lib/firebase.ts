@@ -15,12 +15,3 @@ export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 export const db = getFirestore(app);
-
-// Fonction pour vérifier si l'utilisateur est admin
-export const isUserAdmin = (uid: string) => {
-  const adminUids = [
-    // Ajoutez ici les UIDs des administrateurs
-    "VOTRE_UID_ADMIN"
-  ];
-  return adminUids.includes(uid);
-};

@@ -1,56 +1,53 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
+import { useDropzone } from 'react-dropzone';
+import { Upload, Download, LogIn, LogOut, LayoutDashboard } from 'lucide-react';
+import { useAuth } from './contexts/AuthContext';
+import { AuthModal } from './components/AuthModal';
+import { Dashboard } from './components/Dashboard';
 import { ImageEditor } from './components/ImageEditor';
-import { StylePicker } from './components/StylePicker';
-import { AdminLogin } from './components/AdminLogin';
-import { defaultImageSettings, ImageSettings, FolderStyle } from './types/folder';
-import { getFolderStyles } from './lib/folderStyles';
-import { auth, isUserAdmin } from './lib/firebase';
-import { Shield } from 'lucide-react';
+import { saveFolderIcon, FolderIcon } from './services/folders';
+import { defaultImageSettings, ImageSettings } from './types/folder';
 import toast from 'react-hot-toast';
 
 function App() {
   const [folderName, setFolderName] = useState('');
+  const [folderImage, setFolderImage] = useState<string | null>(null);
   const [imageSettings, setImageSettings] = useState<ImageSettings>(defaultImageSettings);
-  const [isStylePickerOpen, setIsStylePickerOpen] = useState(false);
-  const [isAdminLoginOpen, setIsAdminLoginOpen] = useState(false);
-  const [styles, setStyles] = useState<FolderStyle[]>([]);
-  const [currentStyle, setCurrentStyle] = useState<FolderStyle | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isDashboardOpen, setIsDashboardOpen] = useState(false);
+  
+  const previewRef = useRef<HTMLDivElement>(null);
+  const { user, logout } = useAuth();
 
-  useEffect(() => {
-    // Charger les styles
-    const loadStyles = async () => {
-      try {
-        const loadedStyles = await getFolderStyles();
-        setStyles(loadedStyles);
-        if (loadedStyles.length > 0) {
-          setCurrentStyle(loadedStyles[0]);
-        }
-      } catch (error) {
-        console.error('Erreur lors du chargement des styles:', error);
-        toast.error('Erreur lors du chargement des styles');
-      }
-    };
-    loadStyles();
-
-    // Vérifier si l'utilisateur est admin
-    const unsubscribe = auth.onAuthStateChanged((user) => {
-      if (user) {
-        setIsAdmin(isUserAdmin(user.uid));
-      } else {
-        setIsAdmin(false);
-      }
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  const handlePreviewDoubleClick = () => {
-    setIsStylePickerOpen(true);
+  const onDrop = (acceptedFiles: File[]) => {
+    const file = acceptedFiles[0];
+    if (file && file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setFolderImage(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
-  const renderPreview = () => {
-    if (!currentStyle) return null;
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: {
+      'image/*': []
+    },
+    multiple: false
+  });
+
+  const handleExport = async () => {
+    if (!folderImage) {
+      toast.error('Veuillez importer une image');
+      return;
+    }
+
+    if (!folderName.trim()) {
+      toast.error('Veuillez donner un nom au dossier');
+      return;
+    }
 
     const canvas = document.createElement('canvas');
     canvas.width = 512;
@@ -58,19 +55,67 @@ function App() {
     const ctx = canvas.getContext('2d');
     
     if (ctx) {
-      // Appliquer les paramètres
-      ctx.filter = `
-        brightness(${imageSettings.brightness}%)
-        contrast(${imageSettings.contrast}%)
-        saturate(${imageSettings.saturation}%)
-        opacity(${imageSettings.opacity}%)
-      `;
+      const img = new Image();
+      img.onload = async () => {
+        ctx.filter = `
+          brightness(${imageSettings.brightness}%)
+          contrast(${imageSettings.contrast}%)
+          saturate(${imageSettings.saturation}%)
+          opacity(${imageSettings.opacity}%)
+          hue-rotate(${imageSettings.hue}deg)
+          blur(${imageSettings.blur}px)
+        `;
 
-      // Rendre le dossier avec le style actuel
-      currentStyle.render(ctx, imageSettings.color, imageSettings);
+        ctx.save();
+        ctx.translate(canvas.width / 2, canvas.height / 2);
+        ctx.rotate((imageSettings.rotation * Math.PI) / 180);
+        ctx.scale(imageSettings.scale / 100, imageSettings.scale / 100);
+
+        ctx.shadowColor = imageSettings.shadowColor;
+        ctx.shadowBlur = imageSettings.shadowBlur;
+        ctx.shadowOffsetX = imageSettings.shadowOffsetX;
+        ctx.shadowOffsetY = imageSettings.shadowOffsetY;
+
+        ctx.drawImage(
+          img,
+          -img.width / 2,
+          -img.height / 2,
+          img.width,
+          img.height
+        );
+        ctx.restore();
+
+        if (user) {
+          try {
+            await saveFolderIcon({
+              userId: user.uid,
+              name: folderName,
+              image: folderImage,
+              imageSettings
+            });
+            toast.success('Icône sauvegardée avec succès !');
+          } catch (error) {
+            toast.error('Erreur lors de la sauvegarde');
+          }
+        }
+
+        const url = canvas.toDataURL('image/png');
+        const link = document.createElement('a');
+        link.download = `${folderName}.png`;
+        link.href = url;
+        link.click();
+      };
+      img.src = folderImage;
     }
-    
-    return canvas.toDataURL();
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      toast.success('Déconnexion réussie');
+    } catch (error) {
+      toast.error('Erreur lors de la déconnexion');
+    }
   };
 
   return (
@@ -80,15 +125,34 @@ function App() {
           <h1 className="text-4xl font-bold text-gray-800">
             Créateur d'Icônes de Dossier
           </h1>
-          {!isAdmin && (
-            <button
-              onClick={() => setIsAdminLoginOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
-            >
-              <Shield size={20} />
-              Admin
-            </button>
-          )}
+          <div className="flex items-center gap-4">
+            {user && (
+              <button
+                onClick={() => setIsDashboardOpen(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+              >
+                <LayoutDashboard size={20} />
+                Tableau de bord
+              </button>
+            )}
+            {user ? (
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                <LogOut size={20} />
+                Se déconnecter
+              </button>
+            ) : (
+              <button
+                onClick={() => setIsAuthModalOpen(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+              >
+                <LogIn size={20} />
+                Se connecter
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="flex flex-col lg:flex-row gap-12">
@@ -107,43 +171,94 @@ function App() {
             </div>
 
             <div 
-              className="w-full aspect-square rounded-xl border-2 border-dashed border-gray-300 p-4 cursor-pointer"
-              onDoubleClick={handlePreviewDoubleClick}
+              {...getRootProps()}
+              className={`
+                w-full aspect-square rounded-xl border-2 border-dashed
+                flex flex-col items-center justify-center
+                transition-colors cursor-pointer
+                ${isDragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}
+                ${folderImage ? 'p-4' : 'p-8'}
+              `}
             >
-              {currentStyle && (
-                <img
-                  src={renderPreview()}
-                  alt="Aperçu"
-                  className="w-full h-full object-contain"
-                />
+              <input {...getInputProps()} />
+              {folderImage ? (
+                <div ref={previewRef} className="relative w-full h-full">
+                  <img
+                    src={folderImage}
+                    alt="Aperçu"
+                    className="w-full h-full object-contain"
+                    style={{
+                      filter: `
+                        brightness(${imageSettings.brightness}%)
+                        contrast(${imageSettings.contrast}%)
+                        saturate(${imageSettings.saturation}%)
+                        opacity(${imageSettings.opacity}%)
+                        hue-rotate(${imageSettings.hue}deg)
+                        blur(${imageSettings.blur}px)
+                      `,
+                      transform: `
+                        rotate(${imageSettings.rotation}deg)
+                        scale(${imageSettings.scale / 100})
+                      `,
+                      boxShadow: `
+                        ${imageSettings.shadowOffsetX}px 
+                        ${imageSettings.shadowOffsetY}px 
+                        ${imageSettings.shadowBlur}px 
+                        ${imageSettings.shadowColor}
+                      `
+                    }}
+                  />
+                </div>
+              ) : (
+                <div className="text-center">
+                  <Upload size={48} className="mx-auto mb-4 text-gray-400" />
+                  <p className="text-gray-600 mb-2">
+                    Glissez-déposez une image ici ou
+                  </p>
+                  <button className="text-blue-500 hover:text-blue-600 font-medium">
+                    Parcourir
+                  </button>
+                </div>
               )}
             </div>
 
-            <p className="text-sm text-gray-500 text-center mt-2">
-              Double-cliquez sur l'aperçu pour changer le style du dossier
-            </p>
+            <button
+              onClick={handleExport}
+              disabled={!folderImage}
+              className="w-full mt-6 flex items-center justify-center gap-3 px-6 py-4 bg-green-500 text-white rounded-xl hover:bg-green-600 transition-colors text-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Download size={24} />
+              {user ? 'Sauvegarder et télécharger' : 'Télécharger'}
+            </button>
           </div>
 
-          <div className="lg:w-1/2">
-            <ImageEditor
-              settings={imageSettings}
-              onChange={setImageSettings}
-            />
+          
+
+          <div className="lg:w-1/2 overflow-y-auto max-h-[800px] pr-4">
+            {folderImage && (
+              <ImageEditor
+                settings={imageSettings}
+                onChange={setImageSettings}
+              />
+            )}
           </div>
         </div>
       </div>
 
-      <StylePicker
-        isOpen={isStylePickerOpen}
-        onClose={() => setIsStylePickerOpen(false)}
-        onStyleSelect={setCurrentStyle}
-        styles={styles}
-        currentColor={imageSettings.color}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
       />
 
-      <AdminLogin
-        isOpen={isAdminLoginOpen}
-        onClose={() => setIsAdminLoginOpen(false)}
+      <Dashboard
+        isOpen={isDashboardOpen}
+        onClose={() => setIsDashboardOpen(false)}
+        onEdit={(icon: FolderIcon) => {
+          setFolderName(icon.name);
+          setFolderImage(icon.image);
+          setImageSettings(icon.imageSettings);
+          setIsDashboardOpen(false);
+        }}
       />
     </div>
   );
