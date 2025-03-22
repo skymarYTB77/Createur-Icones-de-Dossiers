@@ -1,48 +1,50 @@
-import React, { useState, useRef } from 'react';
-import { useDropzone } from 'react-dropzone';
-import { Upload, Download, LogIn, LogOut, LayoutDashboard } from 'lucide-react';
+import React, { useState } from 'react';
+import { ImageEditor } from './components/ImageEditor';
+import { defaultImageSettings, defaultOverlaySettings, defaultTextSettings, ImageSettings, OverlaySettings, TextSettings } from './types/folder';
+import { saveFolderIcon, FolderIcon } from './services/folders';
 import { useAuth } from './contexts/AuthContext';
 import { AuthModal } from './components/AuthModal';
 import { Dashboard } from './components/Dashboard';
-import { ImageEditor } from './components/ImageEditor';
-import { saveFolderIcon, FolderIcon } from './services/folders';
-import { defaultImageSettings, defaultOverlaySettings, defaultTextSettings, ImageSettings, OverlaySettings, TextSettings } from './types/folder';
+import { Download, LogIn, LogOut, LayoutDashboard, ArrowLeft, X } from 'lucide-react';
 import toast from 'react-hot-toast';
+
+const folderImages = [
+  'https://res.cloudinary.com/dp1u62e2c/image/upload/v1742632209/dossier-removebg-preview_vmx772.png',
+  'https://res.cloudinary.com/dp1u62e2c/image/upload/v1742633743/dossier_1_igyqow.png',
+  'https://res.cloudinary.com/dp1u62e2c/image/upload/v1742633797/dossier-vide_grouhr.png',
+  'https://res.cloudinary.com/dp1u62e2c/image/upload/v1742633821/dossier_2_b4iamt.png',
+  'https://res.cloudinary.com/dp1u62e2c/image/upload/v1742633860/dossier_3_epivkr.png',
+  'https://res.cloudinary.com/dp1u62e2c/image/upload/v1742633931/dossier_4_pgdjmf.png',
+  'https://res.cloudinary.com/dp1u62e2c/image/upload/v1742633965/dossier_5_asmnp2.png',
+  'https://res.cloudinary.com/dp1u62e2c/image/upload/v1742634022/dossier-3d_qjd22a.png',
+  'https://res.cloudinary.com/dp1u62e2c/image/upload/v1742634042/dossier-de-presse_ui3p0z.png',
+  'https://res.cloudinary.com/dp1u62e2c/image/upload/v1742634357/test_5_zhadkl.png'
+];
 
 function App() {
   const [folderName, setFolderName] = useState('');
-  const [folderImage, setFolderImage] = useState<string | null>(null);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [imageSettings, setImageSettings] = useState<ImageSettings>(defaultImageSettings);
   const [overlaySettings, setOverlaySettings] = useState<OverlaySettings>(defaultOverlaySettings);
   const [textSettings, setTextSettings] = useState<TextSettings>(defaultTextSettings);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isDashboardOpen, setIsDashboardOpen] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   
-  const previewRef = useRef<HTMLDivElement>(null);
   const { user, logout } = useAuth();
 
-  const onDrop = (acceptedFiles: File[]) => {
-    const file = acceptedFiles[0];
-    if (file && file.type.startsWith('image/')) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setFolderImage(e.target?.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
+  const resetSettings = () => {
+    setFolderName('');
+    setImageSettings(defaultImageSettings);
+    setOverlaySettings(defaultOverlaySettings);
+    setTextSettings(defaultTextSettings);
+    setHasUnsavedChanges(false);
   };
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
-    accept: {
-      'image/*': []
-    },
-    multiple: false
-  });
-
   const handleExport = async () => {
-    if (!folderImage) {
-      toast.error('Veuillez importer une image');
+    if (!selectedImage) {
+      toast.error('Veuillez sélectionner une image');
       return;
     }
 
@@ -74,7 +76,6 @@ function App() {
           canvas.height
         );
 
-        // Image superposée
         if (overlaySettings.image) {
           const overlayImg = new Image();
           overlayImg.onload = () => {
@@ -96,7 +97,6 @@ function App() {
           overlayImg.src = overlaySettings.image;
         }
 
-        // Texte superposé
         if (textSettings.text) {
           ctx.save();
           ctx.font = `${textSettings.size}px ${textSettings.fontFamily}`;
@@ -116,12 +116,13 @@ function App() {
             await saveFolderIcon({
               userId: user.uid,
               name: folderName,
-              image: folderImage,
+              image: selectedImage,
               imageSettings,
               overlayImage: overlaySettings.image ? overlaySettings : null,
               overlayText: textSettings.text ? textSettings : null
             });
             toast.success('Icône sauvegardée avec succès !');
+            setHasUnsavedChanges(false);
           } catch (error) {
             toast.error('Erreur lors de la sauvegarde');
           }
@@ -133,7 +134,7 @@ function App() {
         link.href = url;
         link.click();
       };
-      mainImg.src = folderImage;
+      mainImg.src = selectedImage;
     }
   };
 
@@ -146,13 +147,53 @@ function App() {
     }
   };
 
+  const handleImageSelect = (image: string) => {
+    setSelectedImage(image);
+    setHasUnsavedChanges(false);
+  };
+
+  const handleBackClick = () => {
+    if (hasUnsavedChanges) {
+      setShowConfirmModal(true);
+    } else {
+      setSelectedImage(null);
+      resetSettings();
+    }
+  };
+
+  const handleSettingsChange = (newSettings: ImageSettings) => {
+    setImageSettings(newSettings);
+    setHasUnsavedChanges(true);
+  };
+
+  const handleOverlayChange = (newSettings: OverlaySettings) => {
+    setOverlaySettings(newSettings);
+    setHasUnsavedChanges(true);
+  };
+
+  const handleTextChange = (newSettings: TextSettings) => {
+    setTextSettings(newSettings);
+    setHasUnsavedChanges(true);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center p-8">
       <div className="bg-white p-12 rounded-2xl shadow-2xl max-w-6xl w-full">
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-800">
-            Créateur d'Icônes de Dossier
-          </h1>
+          <div className="flex items-center gap-4">
+            {selectedImage && (
+              <button
+                onClick={handleBackClick}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                <ArrowLeft size={20} />
+                Retour
+              </button>
+            )}
+            <h1 className="text-4xl font-bold text-gray-800">
+              Créateur d'Icônes de Dossier
+            </h1>
+          </div>
           <div className="flex items-center gap-4">
             {user && (
               <button
@@ -183,112 +224,116 @@ function App() {
           </div>
         </div>
 
-        <div className="flex flex-col lg:flex-row gap-12">
-          <div className="lg:w-1/2">
-            <div className="mb-6">
-              <label className="block text-lg font-medium text-gray-700 mb-3">
-                Nom du dossier
-              </label>
-              <input
-                type="text"
-                value={folderName}
-                onChange={(e) => setFolderName(e.target.value)}
-                placeholder="Mon dossier"
-                className="w-full p-3 border rounded-lg"
-              />
-            </div>
-
-            <div 
-              {...getRootProps()}
-              className={`
-                w-full aspect-square rounded-xl border-2 border-dashed
-                flex flex-col items-center justify-center
-                transition-colors cursor-pointer
-                ${isDragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}
-                ${folderImage ? 'p-4' : 'p-8'}
-              `}
-            >
-              <input {...getInputProps()} />
-              {folderImage ? (
-                <div ref={previewRef} className="relative w-full h-full">
-                  <img
-                    src={folderImage}
-                    alt="Aperçu"
-                    className="w-full h-full object-contain"
-                    style={{
-                      filter: `
-                        brightness(${imageSettings.brightness}%)
-                        contrast(${imageSettings.contrast}%)
-                        saturate(${imageSettings.saturation}%)
-                        hue-rotate(${imageSettings.hue}deg)
-                      `
-                    }}
-                  />
-                  {overlaySettings.image && (
-                    <img
-                      src={overlaySettings.image}
-                      alt="Superposition"
-                      className="absolute"
-                      style={{
-                        top: `${50 + overlaySettings.y}%`,
-                        left: `${50 + overlaySettings.x}%`,
-                        transform: `translate(-50%, -50%) scale(${overlaySettings.scale / 100})`
-                      }}
-                    />
-                  )}
-                  {textSettings.text && (
-                    <div
-                      className="absolute"
-                      style={{
-                        top: `${50 + textSettings.y}%`,
-                        left: `${50 + textSettings.x}%`,
-                        transform: 'translate(-50%, -50%)',
-                        color: textSettings.color,
-                        fontSize: `${textSettings.size}px`,
-                        fontFamily: textSettings.fontFamily
-                      }}
-                    >
-                      {textSettings.text}
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="text-center">
-                  <Upload size={48} className="mx-auto mb-4 text-gray-400" />
-                  <p className="text-gray-600 mb-2">
-                    Glissez-déposez une image ici ou
-                  </p>
-                  <button className="text-blue-500 hover:text-blue-600 font-medium">
-                    Parcourir
-                  </button>
-                </div>
-              )}
-            </div>
-
-            <button
-              onClick={handleExport}
-              disabled={!folderImage}
-              className="w-full mt-6 flex items-center justify-center gap-3 px-6 py-4 bg-green-500 text-white rounded-xl hover:bg-green-600 transition-colors text-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Download size={24} />
-              {user ? 'Sauvegarder et télécharger' : 'Télécharger'}
-            </button>
+        {!selectedImage ? (
+          <div className="grid grid-cols-5 gap-6">
+            {folderImages.map((image, index) => (
+              <button
+                key={index}
+                onClick={() => handleImageSelect(image)}
+                className="relative w-full aspect-square rounded-xl border-2 border-gray-200 hover:border-gray-300 transition-all p-4"
+              >
+                <img
+                  src={image}
+                  alt={`Dossier ${index + 1}`}
+                  className="w-full h-full object-contain"
+                />
+              </button>
+            ))}
           </div>
+        ) : (
+          <div className="flex flex-col lg:flex-row gap-12">
+            <div className="lg:w-1/2">
+              <div className="mb-6">
+                <label className="block text-lg font-medium text-gray-700 mb-3">
+                  Nom du dossier
+                </label>
+                <input
+                  type="text"
+                  value={folderName}
+                  onChange={(e) => {
+                    setFolderName(e.target.value);
+                    setHasUnsavedChanges(true);
+                  }}
+                  placeholder="Mon dossier"
+                  className="w-full p-3 border rounded-lg"
+                />
+              </div>
 
-          <div className="lg:w-1/2 overflow-y-auto max-h-[800px] pr-4">
-            {folderImage && (
+              <div className="relative aspect-square rounded-xl border-2 border-gray-200 p-4 mb-6">
+                <img
+                  src={selectedImage}
+                  alt="Aperçu"
+                  className="w-full h-full object-contain"
+                  style={{
+                    filter: `
+                      brightness(${imageSettings.brightness}%)
+                      contrast(${imageSettings.contrast}%)
+                      saturate(${imageSettings.saturation}%)
+                      hue-rotate(${imageSettings.hue}deg)
+                    `
+                  }}
+                />
+              </div>
+
+              <button
+                onClick={handleExport}
+                className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-green-500 text-white rounded-xl hover:bg-green-600 transition-colors text-lg font-medium"
+              >
+                <Download size={24} />
+                {user ? 'Sauvegarder et télécharger' : 'Télécharger'}
+              </button>
+            </div>
+
+            <div className="lg:w-1/2 overflow-y-auto max-h-[800px] pr-4">
               <ImageEditor
                 settings={imageSettings}
                 overlaySettings={overlaySettings}
                 textSettings={textSettings}
-                onChange={setImageSettings}
-                onOverlayChange={setOverlaySettings}
-                onTextChange={setTextSettings}
+                onChange={handleSettingsChange}
+                onOverlayChange={handleOverlayChange}
+                onTextChange={handleTextChange}
               />
-            )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {showConfirmModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-semibold">Modifications non sauvegardées</h3>
+              <button
+                onClick={() => setShowConfirmModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X size={24} />
+              </button>
+            </div>
+            <p className="text-gray-600 mb-6">
+              Vous avez des modifications non sauvegardées. Que souhaitez-vous faire ?
+            </p>
+            <div className="flex justify-end gap-4">
+              <button
+                onClick={() => {
+                  setShowConfirmModal(false);
+                  setSelectedImage(null);
+                  resetSettings();
+                }}
+                className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg"
+              >
+                Abandonner
+              </button>
+              <button
+                onClick={handleExport}
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+              >
+                Sauvegarder
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       <AuthModal
         isOpen={isAuthModalOpen}
@@ -300,7 +345,7 @@ function App() {
         onClose={() => setIsDashboardOpen(false)}
         onEdit={(icon: FolderIcon) => {
           setFolderName(icon.name);
-          setFolderImage(icon.image);
+          setSelectedImage(icon.image);
           setImageSettings(icon.imageSettings);
           if (icon.overlayImage) {
             setOverlaySettings(icon.overlayImage);
@@ -309,6 +354,7 @@ function App() {
             setTextSettings(icon.overlayText);
           }
           setIsDashboardOpen(false);
+          setHasUnsavedChanges(false);
         }}
       />
     </div>
