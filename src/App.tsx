@@ -6,13 +6,15 @@ import { AuthModal } from './components/AuthModal';
 import { Dashboard } from './components/Dashboard';
 import { ImageEditor } from './components/ImageEditor';
 import { saveFolderIcon, FolderIcon } from './services/folders';
-import { defaultImageSettings, ImageSettings } from './types/folder';
+import { defaultImageSettings, defaultOverlaySettings, defaultTextSettings, ImageSettings, OverlaySettings, TextSettings } from './types/folder';
 import toast from 'react-hot-toast';
 
 function App() {
   const [folderName, setFolderName] = useState('');
   const [folderImage, setFolderImage] = useState<string | null>(null);
   const [imageSettings, setImageSettings] = useState<ImageSettings>(defaultImageSettings);
+  const [overlaySettings, setOverlaySettings] = useState<OverlaySettings>(defaultOverlaySettings);
+  const [textSettings, setTextSettings] = useState<TextSettings>(defaultTextSettings);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isDashboardOpen, setIsDashboardOpen] = useState(false);
   
@@ -55,35 +57,59 @@ function App() {
     const ctx = canvas.getContext('2d');
     
     if (ctx) {
-      const img = new Image();
-      img.onload = async () => {
+      const mainImg = new Image();
+      mainImg.onload = async () => {
         ctx.filter = `
           brightness(${imageSettings.brightness}%)
           contrast(${imageSettings.contrast}%)
           saturate(${imageSettings.saturation}%)
-          opacity(${imageSettings.opacity}%)
           hue-rotate(${imageSettings.hue}deg)
-          blur(${imageSettings.blur}px)
         `;
 
-        ctx.save();
-        ctx.translate(canvas.width / 2, canvas.height / 2);
-        ctx.rotate((imageSettings.rotation * Math.PI) / 180);
-        ctx.scale(imageSettings.scale / 100, imageSettings.scale / 100);
-
-        ctx.shadowColor = imageSettings.shadowColor;
-        ctx.shadowBlur = imageSettings.shadowBlur;
-        ctx.shadowOffsetX = imageSettings.shadowOffsetX;
-        ctx.shadowOffsetY = imageSettings.shadowOffsetY;
-
         ctx.drawImage(
-          img,
-          -img.width / 2,
-          -img.height / 2,
-          img.width,
-          img.height
+          mainImg,
+          0,
+          0,
+          canvas.width,
+          canvas.height
         );
-        ctx.restore();
+
+        // Image superposée
+        if (overlaySettings.image) {
+          const overlayImg = new Image();
+          overlayImg.onload = () => {
+            ctx.save();
+            ctx.translate(
+              canvas.width / 2 + overlaySettings.x,
+              canvas.height / 2 + overlaySettings.y
+            );
+            ctx.scale(overlaySettings.scale / 100, overlaySettings.scale / 100);
+            ctx.drawImage(
+              overlayImg,
+              -overlayImg.width / 2,
+              -overlayImg.height / 2,
+              overlayImg.width,
+              overlayImg.height
+            );
+            ctx.restore();
+          };
+          overlayImg.src = overlaySettings.image;
+        }
+
+        // Texte superposé
+        if (textSettings.text) {
+          ctx.save();
+          ctx.font = `${textSettings.size}px ${textSettings.fontFamily}`;
+          ctx.fillStyle = textSettings.color;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(
+            textSettings.text,
+            canvas.width / 2 + textSettings.x,
+            canvas.height / 2 + textSettings.y
+          );
+          ctx.restore();
+        }
 
         if (user) {
           try {
@@ -91,7 +117,9 @@ function App() {
               userId: user.uid,
               name: folderName,
               image: folderImage,
-              imageSettings
+              imageSettings,
+              overlayImage: overlaySettings.image ? overlaySettings : null,
+              overlayText: textSettings.text ? textSettings : null
             });
             toast.success('Icône sauvegardée avec succès !');
           } catch (error) {
@@ -105,7 +133,7 @@ function App() {
         link.href = url;
         link.click();
       };
-      img.src = folderImage;
+      mainImg.src = folderImage;
     }
   };
 
@@ -192,22 +220,37 @@ function App() {
                         brightness(${imageSettings.brightness}%)
                         contrast(${imageSettings.contrast}%)
                         saturate(${imageSettings.saturation}%)
-                        opacity(${imageSettings.opacity}%)
                         hue-rotate(${imageSettings.hue}deg)
-                        blur(${imageSettings.blur}px)
-                      `,
-                      transform: `
-                        rotate(${imageSettings.rotation}deg)
-                        scale(${imageSettings.scale / 100})
-                      `,
-                      boxShadow: `
-                        ${imageSettings.shadowOffsetX}px 
-                        ${imageSettings.shadowOffsetY}px 
-                        ${imageSettings.shadowBlur}px 
-                        ${imageSettings.shadowColor}
                       `
                     }}
                   />
+                  {overlaySettings.image && (
+                    <img
+                      src={overlaySettings.image}
+                      alt="Superposition"
+                      className="absolute"
+                      style={{
+                        top: `${50 + overlaySettings.y}%`,
+                        left: `${50 + overlaySettings.x}%`,
+                        transform: `translate(-50%, -50%) scale(${overlaySettings.scale / 100})`
+                      }}
+                    />
+                  )}
+                  {textSettings.text && (
+                    <div
+                      className="absolute"
+                      style={{
+                        top: `${50 + textSettings.y}%`,
+                        left: `${50 + textSettings.x}%`,
+                        transform: 'translate(-50%, -50%)',
+                        color: textSettings.color,
+                        fontSize: `${textSettings.size}px`,
+                        fontFamily: textSettings.fontFamily
+                      }}
+                    >
+                      {textSettings.text}
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="text-center">
@@ -232,13 +275,15 @@ function App() {
             </button>
           </div>
 
-          
-
           <div className="lg:w-1/2 overflow-y-auto max-h-[800px] pr-4">
             {folderImage && (
               <ImageEditor
                 settings={imageSettings}
+                overlaySettings={overlaySettings}
+                textSettings={textSettings}
                 onChange={setImageSettings}
+                onOverlayChange={setOverlaySettings}
+                onTextChange={setTextSettings}
               />
             )}
           </div>
@@ -257,6 +302,12 @@ function App() {
           setFolderName(icon.name);
           setFolderImage(icon.image);
           setImageSettings(icon.imageSettings);
+          if (icon.overlayImage) {
+            setOverlaySettings(icon.overlayImage);
+          }
+          if (icon.overlayText) {
+            setTextSettings(icon.overlayText);
+          }
           setIsDashboardOpen(false);
         }}
       />
