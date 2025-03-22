@@ -6,6 +6,8 @@ export interface FolderIcon {
   imageSettings: ImageSettings;
   overlayImage: OverlaySettings | null;
   overlayText: TextSettings | null;
+  drawing: string | null;
+  shapes: Shape[] | null;
   createdAt?: Date;
 }
 
@@ -32,6 +34,15 @@ export interface TextSettings {
   fontFamily: string;
 }
 
+export interface Shape {
+  type: 'rectangle' | 'circle' | 'triangle';
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  color: string;
+}
+
 export const defaultImageSettings: ImageSettings = {
   brightness: 100,
   contrast: 100,
@@ -51,6 +62,6 @@ export const defaultTextSettings: TextSettings = {
   x: 0,
   y: 0,
   size: 24,
-  color: '#000000',
+  color: '#ffffff',
   fontFamily: 'Arial'
 };
