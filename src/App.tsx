@@ -3,6 +3,7 @@ import { Sidebar } from './components/Sidebar';
 import { TextTool } from './components/tools/TextTool';
 import { ImageTool } from './components/tools/ImageTool';
 import { FolderTool } from './components/tools/FolderTool';
+import { IconCanvas } from './components/IconCanvas';
 import { defaultImageSettings, defaultOverlaySettings, defaultTextSettings, ImageSettings, OverlaySettings, TextSettings } from './types/folder';
 import { Download, LogIn, LogOut, LayoutDashboard, ArrowLeft, X } from 'lucide-react';
 import { useAuth } from './contexts/AuthContext';
@@ -10,7 +11,6 @@ import { AuthModal } from './components/AuthModal';
 import { Dashboard } from './components/Dashboard';
 import { saveFolderIcon } from './services/folders';
 import toast from 'react-hot-toast';
-import Draggable from 'react-draggable';
 
 const folderImages = [
   'https://res.cloudinary.com/dp1u62e2c/image/upload/v1742632209/dossier-removebg-preview_vmx772.png',
@@ -36,6 +36,7 @@ function App() {
   const [isDashboardOpen, setIsDashboardOpen] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [canvasRef] = useState<React.RefObject<HTMLCanvasElement>>(React.createRef());
   
   const { user, logout } = useAuth();
 
@@ -75,134 +76,32 @@ function App() {
       return;
     }
 
-    const canvas = document.createElement('canvas');
-    canvas.width = 512;
-    canvas.height = 512;
-    const ctx = canvas.getContext('2d');
-    
-    if (ctx) {
+    if (canvasRef.current) {
       try {
-        // Charger l'image principale
-        const mainImg = new Image();
-        mainImg.crossOrigin = 'anonymous';
+        const dataUrl = canvasRef.current.toDataURL('image/png');
         
-        mainImg.onload = async () => {
-          // Appliquer les filtres à l'image principale
-          ctx.filter = `
-            brightness(${imageSettings.brightness}%)
-            contrast(${imageSettings.contrast}%)
-            saturate(${imageSettings.saturation}%)
-            hue-rotate(${imageSettings.hue}deg)
-          `;
+        if (user) {
+          await saveFolderIcon({
+            userId: user.uid,
+            name: folderName,
+            image: selectedImage,
+            imageSettings,
+            overlayImage: overlaySettings.image ? overlaySettings : null,
+            overlayText: textSettings.text ? textSettings : null,
+            drawing: null,
+            shapes: null
+          });
+          toast.success('Icône sauvegardée avec succès !');
+          setHasUnsavedChanges(false);
+        }
 
-          // Dessiner l'image principale
-          ctx.drawImage(mainImg, 0, 0, canvas.width, canvas.height);
-
-          // Réinitialiser les filtres
-          ctx.filter = 'none';
-
-          // Gérer l'image superposée
-          if (overlaySettings.image) {
-            const overlayImg = new Image();
-            overlayImg.crossOrigin = 'anonymous';
-            
-            overlayImg.onload = () => {
-              // Calculer les positions centrées
-              const centerX = canvas.width / 2;
-              const centerY = canvas.height / 2;
-              const scale = overlaySettings.scale / 100;
-
-              ctx.save();
-              // Appliquer la transformation pour l'image superposée
-              ctx.translate(
-                centerX + overlaySettings.x,
-                centerY + overlaySettings.y
-              );
-              ctx.scale(scale, scale);
-
-              // Dessiner l'image superposée centrée
-              ctx.drawImage(
-                overlayImg,
-                -overlayImg.width / 2,
-                -overlayImg.height / 2
-              );
-              ctx.restore();
-
-              // Ajouter le texte après l'image superposée
-              if (textSettings.text) {
-                ctx.save();
-                ctx.font = `${textSettings.size}px ${textSettings.fontFamily}`;
-                ctx.fillStyle = textSettings.color;
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-
-                // Dessiner le texte à la position calculée
-                ctx.fillText(
-                  textSettings.text,
-                  centerX + textSettings.x,
-                  centerY + textSettings.y
-                );
-                ctx.restore();
-              }
-
-              finishExport();
-            };
-            overlayImg.src = overlaySettings.image;
-          } else if (textSettings.text) {
-            // Si pas d'image superposée mais du texte
-            ctx.save();
-            ctx.font = `${textSettings.size}px ${textSettings.fontFamily}`;
-            ctx.fillStyle = textSettings.color;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-
-            // Dessiner le texte à la position calculée
-            ctx.fillText(
-              textSettings.text,
-              canvas.width / 2 + textSettings.x,
-              canvas.height / 2 + textSettings.y
-            );
-            ctx.restore();
-            finishExport();
-          } else {
-            finishExport();
-          }
-        };
-
-        const finishExport = async () => {
-          if (user) {
-            try {
-              await saveFolderIcon({
-                userId: user.uid,
-                name: folderName,
-                image: selectedImage,
-                imageSettings,
-                overlayImage: overlaySettings.image ? overlaySettings : null,
-                overlayText: textSettings.text ? textSettings : null,
-                drawing: null,
-                shapes: null
-              });
-              toast.success('Icône sauvegardée avec succès !');
-              setHasUnsavedChanges(false);
-            } catch (error) {
-              toast.error('Erreur lors de la sauvegarde');
-            }
-          }
-
-          try {
-            const url = canvas.toDataURL('image/png');
-            const link = document.createElement('a');
-            link.download = `${folderName}.png`;
-            link.href = url;
-            link.click();
-          } catch (error) {
-            toast.error('Erreur lors de l\'exportation de l\'image');
-          }
-        };
-
-        mainImg.src = selectedImage;
+        // Télécharger l'image
+        const link = document.createElement('a');
+        link.download = `${folderName}.png`;
+        link.href = dataUrl;
+        link.click();
       } catch (error) {
-        toast.error('Erreur lors de la génération de l\'image');
+        toast.error('Erreur lors de la sauvegarde ou de l\'exportation');
       }
     }
   };
@@ -354,64 +253,14 @@ function App() {
                 </div>
 
                 <div className="relative flex-1 rounded-2xl border-2 border-[#2a2a5a] p-4 mb-6 bg-[#1a1a3a] flex items-center justify-center">
-                  <div className="relative w-full h-full flex items-center justify-center">
-                    <img
-                      src={selectedImage}
-                      alt="Aperçu"
-                      className="max-w-full max-h-full object-contain"
-                      crossOrigin="anonymous"
-                      style={{
-                        filter: `
-                          brightness(${imageSettings.brightness}%)
-                          contrast(${imageSettings.contrast}%)
-                          saturate(${imageSettings.saturation}%)
-                          hue-rotate(${imageSettings.hue}deg)
-                        `
-                      }}
+                  <div className="relative w-[512px] h-[512px]">
+                    <IconCanvas
+                      ref={canvasRef}
+                      mainImage={selectedImage}
+                      imageSettings={imageSettings}
+                      overlaySettings={overlaySettings}
+                      textSettings={textSettings}
                     />
-                    {overlaySettings.image && (
-                      <Draggable
-                        position={{ x: overlaySettings.x, y: overlaySettings.y }}
-                        onDrag={(e, data) => handleDrag('image', data)}
-                      >
-                        <img
-                          src={overlaySettings.image}
-                          alt="Superposition"
-                          className="absolute cursor-move pointer-events-auto"
-                          crossOrigin="anonymous"
-                          style={{
-                            transform: `translate(-50%, -50%) scale(${overlaySettings.scale / 100})`,
-                            width: '200px',
-                            height: '200px',
-                            objectFit: 'contain',
-                            touchAction: 'none',
-                            zIndex: 10
-                          }}
-                        />
-                      </Draggable>
-                    )}
-                    {textSettings.text && (
-                      <Draggable
-                        position={{ x: textSettings.x, y: textSettings.y }}
-                        onDrag={(e, data) => handleDrag('text', data)}
-                      >
-                        <div
-                          className="absolute cursor-move pointer-events-auto"
-                          style={{
-                            transform: 'translate(-50%, -50%)',
-                            color: textSettings.color,
-                            fontFamily: textSettings.fontFamily,
-                            fontSize: `${textSettings.size}px`,
-                            touchAction: 'none',
-                            zIndex: 20,
-                            textShadow: '0 0 10px rgba(0,0,0,0.3)',
-                            whiteSpace: 'nowrap'
-                          }}
-                        >
-                          {textSettings.text}
-                        </div>
-                      </Draggable>
-                    )}
                   </div>
                 </div>
 

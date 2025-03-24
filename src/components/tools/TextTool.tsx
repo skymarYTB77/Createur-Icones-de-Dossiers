@@ -2,6 +2,19 @@ import React from 'react';
 import { HexColorPicker } from 'react-colorful';
 import { TextSettings } from '../../types/folder';
 
+const GOOGLE_FONTS = [
+  'Roboto',
+  'Open Sans',
+  'Lato',
+  'Montserrat',
+  'Poppins',
+  'Raleway',
+  'Source Sans Pro',
+  'Ubuntu',
+  'Playfair Display',
+  'Merriweather'
+];
+
 interface TextToolProps {
   settings: TextSettings;
   onChange: (settings: TextSettings) => void;
@@ -60,11 +73,17 @@ export function TextTool({ settings, onChange }: TextToolProps) {
           value={settings.fontFamily}
           onChange={(e) => onChange({ ...settings, fontFamily: e.target.value })}
           className="w-full px-3 py-2 border rounded-md text-gray-900"
+          style={{ fontFamily: settings.fontFamily }}
         >
-          <option value="Arial">Arial</option>
-          <option value="Times New Roman">Times New Roman</option>
-          <option value="Georgia">Georgia</option>
-          <option value="Courier New">Courier New</option>
+          {GOOGLE_FONTS.map(font => (
+            <option 
+              key={font} 
+              value={font}
+              style={{ fontFamily: font }}
+            >
+              {font}
+            </option>
+          ))}
         </select>
       </div>
     </div>
