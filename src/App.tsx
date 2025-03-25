@@ -9,6 +9,7 @@ import { Download, LogIn, LogOut, LayoutDashboard, ArrowLeft, X } from 'lucide-r
 import { useAuth } from './contexts/AuthContext';
 import { AuthModal } from './components/AuthModal';
 import { Dashboard } from './components/Dashboard';
+import { LegalModal } from './components/LegalModal';
 import { saveFolderIcon } from './services/folders';
 import toast from 'react-hot-toast';
 
@@ -37,6 +38,15 @@ function App() {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [canvasRef] = useState<React.RefObject<HTMLCanvasElement>>(React.createRef());
+  const [legalModal, setLegalModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    content: React.ReactNode;
+  }>({
+    isOpen: false,
+    title: '',
+    content: null
+  });
   
   const { user, logout } = useAuth();
 
@@ -95,7 +105,6 @@ function App() {
           setHasUnsavedChanges(false);
         }
 
-        // Télécharger l'image
         const link = document.createElement('a');
         link.download = `${folderName}.png`;
         link.href = dataUrl;
@@ -127,6 +136,96 @@ function App() {
       setSelectedImage(null);
       resetSettings();
     }
+  };
+
+  const showPrivacyPolicy = () => {
+    setLegalModal({
+      isOpen: true,
+      title: 'Politique de confidentialité',
+      content: (
+        <div>
+          <p>Dernière mise à jour : 25/03/2025</p>
+
+          <p>Nous accordons une grande importance à la protection de vos données personnelles. Cette politique de confidentialité explique quelles informations nous collectons, comment nous les utilisons et quels sont vos droits.</p>
+
+          <h3>1. Informations collectées</h3>
+          <p>Nous collectons les données suivantes lorsque vous utilisez notre application :</p>
+          <ul>
+            <li>Informations de compte : Lorsque vous vous inscrivez, nous collectons votre adresse e-mail et toute information fournie via Firebase Authentication.</li>
+            <li>Données d'utilisation : Nous collectons des informations sur votre activité, telles que la création et la personnalisation d'icônes.</li>
+            <li>Fichiers et images : Toute image ou fichier importé est stocké de manière sécurisée sur Firebase Storage.</li>
+          </ul>
+
+          <h3>2. Utilisation des données</h3>
+          <p>Vos données sont utilisées pour :</p>
+          <ul>
+            <li>Fournir et améliorer nos services</li>
+            <li>Sauvegarder et restaurer vos icônes personnalisées</li>
+            <li>Garantir la sécurité de votre compte</li>
+            <li>Vous envoyer des notifications si nécessaire</li>
+          </ul>
+
+          <h3>3. Partage des données</h3>
+          <p>Nous ne vendons ni ne partageons vos données personnelles avec des tiers, sauf dans les cas suivants :</p>
+          <ul>
+            <li>Conformité à une obligation légale</li>
+            <li>Protection de nos droits et prévention des fraudes</li>
+          </ul>
+
+          <h3>4. Sécurité</h3>
+          <p>Nous utilisons Firebase pour assurer un stockage sécurisé de vos données. Vos informations sont cryptées et protégées contre tout accès non autorisé.</p>
+
+          <h3>5. Vos droits</h3>
+          <p>Vous pouvez à tout moment :</p>
+          <ul>
+            <li>Accéder à vos données personnelles</li>
+            <li>Supprimer votre compte et vos fichiers stockés</li>
+            <li>Modifier vos préférences de confidentialité</li>
+          </ul>
+
+          <h3>6. Contact</h3>
+          <p>Pour toute question concernant cette politique, contactez-nous à : kristopher@meunierdigital.fr</p>
+        </div>
+      )
+    });
+  };
+
+  const showTermsOfService = () => {
+    setLegalModal({
+      isOpen: true,
+      title: "Conditions d'utilisation",
+      content: (
+        <div>
+          <p>Dernière mise à jour : 25/03/2025</p>
+
+          <h3>1. Acceptation des termes</h3>
+          <p>En accédant et en utilisant notre application, vous acceptez ces conditions d'utilisation. Si vous n'adhérez pas à ces conditions, veuillez ne pas utiliser l'application.</p>
+
+          <h3>2. Accès et inscription</h3>
+          <p>L'inscription à l'application est requise pour utiliser certaines fonctionnalités. Vous êtes responsable de la confidentialité de vos informations de connexion.</p>
+
+          <h3>3. Utilisation des services</h3>
+          <p>Vous acceptez de ne pas :</p>
+          <ul>
+            <li>Utiliser l'application à des fins illégales ou frauduleuses</li>
+            <li>Télécharger du contenu offensant ou protégé par des droits d'auteur sans autorisation</li>
+            <li>Tenter d'accéder à des données d'autres utilisateurs</li>
+          </ul>
+
+          <h3>4. Responsabilité</h3>
+          <p>Nous fournissons notre service "en l'état" sans garantie d'absence de bugs. Nous ne serons pas responsables des pertes de données.</p>
+
+          <h3>5. Résiliation</h3>
+          <p>Nous nous réservons le droit de suspendre ou de supprimer un compte en cas de violation des présentes conditions.</p>
+
+          <h3>6. Modification des conditions</h3>
+          <p>Nous nous réservons le droit de modifier ces conditions à tout moment. Les utilisateurs seront informés en cas de changements importants.</p>
+
+          <h3>7. Contact</h3>
+          <p>Pour toute question, contactez-nous à : kristopher@meunierdigital.fr</p>
+        </div>
+      )
+    });
   };
 
   const renderToolPanel = () => {
@@ -167,9 +266,9 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0a1f] text-white flex items-center justify-center">
-      <div className="bg-[#1a1a3a] backdrop-blur-xl bg-opacity-80 w-full min-h-screen border border-[#2a2a5a]">
-        <div className="p-4 flex flex-col h-screen">
+    <div className="min-h-screen bg-[#0a0a1f] text-white flex flex-col">
+      <div className="flex-1 bg-[#1a1a3a] backdrop-blur-xl bg-opacity-80 border border-[#2a2a5a]">
+        <div className="p-4 flex flex-col h-full">
           <div className="flex justify-between items-center mb-8">
             <div className="flex items-center gap-4">
               {selectedImage && (
@@ -285,6 +384,28 @@ function App() {
         </div>
       </div>
 
+      <footer className="bg-[#1a1a3a] border-t border-[#2a2a5a] py-4 px-6">
+        <div className="container mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
+          <p className="text-gray-400">
+            © {new Date().getFullYear()} MEUNIERDIGITAL. Tous droits réservés.
+          </p>
+          <div className="flex gap-4">
+            <button
+              onClick={showPrivacyPolicy}
+              className="text-gray-400 hover:text-white transition-colors"
+            >
+              Politique de confidentialité
+            </button>
+            <button
+              onClick={showTermsOfService}
+              className="text-gray-400 hover:text-white transition-colors"
+            >
+              Conditions d'utilisation
+            </button>
+          </div>
+        </div>
+      </footer>
+
       {showConfirmModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-[#1a1a3a] rounded-2xl p-6 max-w-md w-full mx-4 border border-[#2a2a5a]">
@@ -343,6 +464,13 @@ function App() {
           setIsDashboardOpen(false);
           setHasUnsavedChanges(false);
         }}
+      />
+
+      <LegalModal
+        isOpen={legalModal.isOpen}
+        onClose={() => setLegalModal({ ...legalModal, isOpen: false })}
+        title={legalModal.title}
+        content={legalModal.content}
       />
     </div>
   );

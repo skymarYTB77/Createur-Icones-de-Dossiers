@@ -2,7 +2,10 @@ import { useEffect, useState } from 'react';
 import { Trash2, Edit, Download } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getUserFolderIcons, FolderIcon, deleteFolderIcon } from '../services/folders';
+import { format } from 'date-fns';
+import { fr } from 'date-fns/locale';
 import toast from 'react-hot-toast';
+import { IconCanvas } from './IconCanvas';
 
 interface DashboardProps {
   isOpen: boolean;
@@ -58,29 +61,10 @@ export function Dashboard({ isOpen, onClose, onEdit }: DashboardProps) {
           brightness(${icon.imageSettings.brightness}%)
           contrast(${icon.imageSettings.contrast}%)
           saturate(${icon.imageSettings.saturation}%)
-          opacity(${icon.imageSettings.opacity}%)
           hue-rotate(${icon.imageSettings.hue}deg)
-          blur(${icon.imageSettings.blur}px)
         `;
 
-        ctx.save();
-        ctx.translate(canvas.width / 2, canvas.height / 2);
-        ctx.rotate((icon.imageSettings.rotation * Math.PI) / 180);
-        ctx.scale(icon.imageSettings.scale / 100, icon.imageSettings.scale / 100);
-
-        ctx.shadowColor = icon.imageSettings.shadowColor;
-        ctx.shadowBlur = icon.imageSettings.shadowBlur;
-        ctx.shadowOffsetX = icon.imageSettings.shadowOffsetX;
-        ctx.shadowOffsetY = icon.imageSettings.shadowOffsetY;
-
-        ctx.drawImage(
-          img,
-          -img.width / 2,
-          -img.height / 2,
-          img.width,
-          img.height
-        );
-        ctx.restore();
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
         const url = canvas.toDataURL('image/png');
         const link = document.createElement('a');
@@ -119,41 +103,31 @@ export function Dashboard({ isOpen, onClose, onEdit }: DashboardProps) {
             {icons.map((icon) => (
               <div
                 key={icon.id}
-                className="bg-gray-50 rounded-lg p-4 flex flex-col items-center shadow-md hover:shadow-lg transition-shadow"
+                className="bg-gray-50 rounded-lg p-4 flex flex-col shadow-md hover:shadow-lg transition-shadow"
               >
-                <div className="relative w-32 h-32 mb-4">
-                  <img
-                    src={icon.image}
-                    alt={icon.name}
-                    className="w-full h-full object-contain"
-                    style={{
-                      filter: `
-                        brightness(${icon.imageSettings.brightness}%)
-                        contrast(${icon.imageSettings.contrast}%)
-                        saturate(${icon.imageSettings.saturation}%)
-                        opacity(${icon.imageSettings.opacity}%)
-                        hue-rotate(${icon.imageSettings.hue}deg)
-                        blur(${icon.imageSettings.blur}px)
-                      `,
-                      transform: `
-                        rotate(${icon.imageSettings.rotation}deg)
-                        scale(${icon.imageSettings.scale / 100})
-                      `,
-                      boxShadow: `
-                        ${icon.imageSettings.shadowOffsetX}px 
-                        ${icon.imageSettings.shadowOffsetY}px 
-                        ${icon.imageSettings.shadowBlur}px 
-                        ${icon.imageSettings.shadowColor}
-                      `
-                    }}
+                <div className="relative w-full aspect-square mb-4">
+                  <IconCanvas
+                    mainImage={icon.image}
+                    imageSettings={icon.imageSettings}
+                    overlaySettings={icon.overlayImage || { image: '', x: 0, y: 0, scale: 100 }}
+                    textSettings={icon.overlayText || { text: '', x: 0, y: 0, size: 32, color: '#000000', fontFamily: 'Arial' }}
                   />
                 </div>
 
-                <h3 className="text-lg font-medium text-gray-800 mb-2 text-center">
-                  {icon.name || 'Sans nom'}
-                </h3>
+                <div className="space-y-2">
+                  <h3 className="text-lg font-medium text-gray-800">
+                    {icon.name || 'Sans nom'}
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    Créé le {format(
+                      icon.createdAt?.toDate() || new Date(),
+                      'dd MMMM yyyy à HH:mm',
+                      { locale: fr }
+                    )}
+                  </p>
+                </div>
 
-                <div className="flex gap-1 justify-center mt-2">
+                <div className="flex gap-1 justify-center mt-4">
                   <button
                     onClick={() => onEdit(icon)}
                     className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
