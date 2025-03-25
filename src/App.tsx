@@ -15,6 +15,7 @@ import { ProfileModal } from './components/ProfileModal';
 import { SettingsModal } from './components/SettingsModal';
 import { useTheme } from './contexts/ThemeContext';
 import { saveFolderIcon } from './services/folders';
+import { createIcoBlob } from './utils/iconConverter';
 import toast from 'react-hot-toast';
 
 const folderImages = [
@@ -93,32 +94,41 @@ function App() {
       return;
     }
 
-    if (canvasRef.current) {
-      try {
-        const dataUrl = canvasRef.current.toDataURL('image/png');
-        
-        if (user) {
-          await saveFolderIcon({
-            userId: user.uid,
-            name: folderName,
-            image: selectedImage,
-            imageSettings,
-            overlayImage: overlaySettings.image ? overlaySettings : null,
-            overlayText: textSettings.text ? textSettings : null,
-            drawing: null,
-            shapes: null
-          });
-          toast.success('Icône sauvegardée avec succès !');
-          setHasUnsavedChanges(false);
-        }
-
-        const link = document.createElement('a');
-        link.download = `${folderName}.png`;
-        link.href = dataUrl;
-        link.click();
-      } catch (error) {
-        toast.error('Erreur lors de la sauvegarde ou de l\'exportation');
+    try {
+      // Créer le blob ICO
+      const icoBlob = await createIcoBlob(
+        selectedImage,
+        imageSettings,
+        overlaySettings,
+        textSettings
+      );
+      
+      // Sauvegarder dans Firebase si l'utilisateur est connecté
+      if (user) {
+        await saveFolderIcon({
+          userId: user.uid,
+          name: folderName,
+          image: selectedImage,
+          imageSettings,
+          overlayImage: overlaySettings.image ? overlaySettings : null,
+          overlayText: textSettings.text ? textSettings : null,
+          drawing: null,
+          shapes: null
+        });
+        toast.success('Icône sauvegardée avec succès !');
+        setHasUnsavedChanges(false);
       }
+
+      // Télécharger le fichier ICO
+      const url = URL.createObjectURL(icoBlob);
+      const link = document.createElement('a');
+      link.download = `${folderName}.ico`;
+      link.href = url;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      toast.error('Erreur lors de la sauvegarde ou de l\'exportation');
+      console.error('Export error:', error);
     }
   };
 
