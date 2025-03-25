@@ -4,12 +4,16 @@ import { TextTool } from './components/tools/TextTool';
 import { ImageTool } from './components/tools/ImageTool';
 import { FolderTool } from './components/tools/FolderTool';
 import { IconCanvas } from './components/IconCanvas';
-import { defaultImageSettings, defaultOverlaySettings, defaultTextSettings, ImageSettings, OverlaySettings, TextSettings } from './types/folder';
-import { Download, LogIn, LogOut, LayoutDashboard, ArrowLeft, X } from 'lucide-react';
+import { defaultImageSettings, defaultOverlaySettings, defaultTextSettings } from './types/folder';
+import { Download, LayoutDashboard, ArrowLeft, X } from 'lucide-react';
 import { useAuth } from './contexts/AuthContext';
 import { AuthModal } from './components/AuthModal';
 import { Dashboard } from './components/Dashboard';
 import { LegalModal } from './components/LegalModal';
+import { ProfileMenu } from './components/ProfileMenu';
+import { ProfileModal } from './components/ProfileModal';
+import { SettingsModal } from './components/SettingsModal';
+import { useTheme } from './contexts/ThemeContext';
 import { saveFolderIcon } from './services/folders';
 import toast from 'react-hot-toast';
 
@@ -38,6 +42,8 @@ function App() {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [canvasRef] = useState<React.RefObject<HTMLCanvasElement>>(React.createRef());
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [legalModal, setLegalModal] = useState<{
     isOpen: boolean;
     title: string;
@@ -49,6 +55,7 @@ function App() {
   });
   
   const { user, logout } = useAuth();
+  const { theme, background } = useTheme();
 
   const handleDrag = (type: 'text' | 'image', data: { x: number; y: number }) => {
     if (type === 'text') {
@@ -266,8 +273,25 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0a1f] text-white flex flex-col">
-      <div className="flex-1 bg-[#1a1a3a] backdrop-blur-xl bg-opacity-80 border border-[#2a2a5a]">
+    <div 
+      className="min-h-screen text-white flex flex-col"
+      style={{
+        background: background 
+          ? `url(${background}) center/cover no-repeat fixed`
+          : theme === 'light'
+          ? 'bg-white'
+          : theme === 'dark'
+          ? '#121212'
+          : '#0a0a1f'
+      }}
+    >
+      <div className={`flex-1 backdrop-blur-xl border border-[#2a2a5a] ${
+        theme === 'light'
+          ? 'bg-white/80'
+          : theme === 'dark'
+          ? 'bg-[#121212]/80'
+          : 'bg-[#1a1a3a]/80'
+      }`}>
         <div className="p-4 flex flex-col h-full">
           <div className="flex justify-between items-center mb-8">
             <div className="flex items-center gap-4">
@@ -295,19 +319,15 @@ function App() {
                 </button>
               )}
               {user ? (
-                <button
-                  onClick={handleLogout}
-                  className="flex items-center gap-2 px-4 py-2 bg-[#2a2a5a] hover:bg-[#3a3a7a] rounded-xl transition-all duration-300"
-                >
-                  <LogOut size={20} />
-                  Se déconnecter
-                </button>
+                <ProfileMenu
+                  onOpenProfile={() => setIsProfileModalOpen(true)}
+                  onOpenSettings={() => setIsSettingsModalOpen(true)}
+                />
               ) : (
                 <button
                   onClick={() => setIsAuthModalOpen(true)}
                   className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 rounded-xl transition-all duration-300"
                 >
-                  <LogIn size={20} />
                   Se connecter
                 </button>
               )}
@@ -471,6 +491,16 @@ function App() {
         onClose={() => setLegalModal({ ...legalModal, isOpen: false })}
         title={legalModal.title}
         content={legalModal.content}
+      />
+
+      <ProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+      />
+
+      <SettingsModal
+        isOpen={isSettingsModalOpen}
+        onClose={() => setIsSettingsModalOpen(false)}
       />
     </div>
   );
