@@ -260,6 +260,7 @@ function App() {
                       imageSettings={imageSettings}
                       overlaySettings={overlaySettings}
                       textSettings={textSettings}
+                      onDrag={(type, x, y) => handleDrag(type, { x, y })}
                     />
                   </div>
                 </div>
