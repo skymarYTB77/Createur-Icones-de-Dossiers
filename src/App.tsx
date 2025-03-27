@@ -3,7 +3,6 @@ import { Sidebar } from './components/Sidebar';
 import { TextTool } from './components/tools/TextTool';
 import { ImageTool } from './components/tools/ImageTool';
 import { FolderTool } from './components/tools/FolderTool';
-import { ExportTool } from './components/tools/ExportTool';
 import { IconCanvas } from './components/IconCanvas';
 import { defaultImageSettings, defaultOverlaySettings, defaultTextSettings } from './types/folder';
 import { Download, LayoutDashboard, ArrowLeft, X } from 'lucide-react';
@@ -16,7 +15,6 @@ import { ProfileModal } from './components/ProfileModal';
 import { SettingsModal } from './components/SettingsModal';
 import { useTheme } from './contexts/ThemeContext';
 import { saveFolderIcon } from './services/folders';
-import { createPNGBlob } from './utils/iconConverter';
 import toast from 'react-hot-toast';
 
 const folderImages = [
@@ -46,7 +44,6 @@ function App() {
   const [canvasRef] = useState<React.RefObject<HTMLCanvasElement>>(React.createRef());
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
-  const [isExporting, setIsExporting] = useState(false);
   const [legalModal, setLegalModal] = useState<{
     isOpen: boolean;
     title: string;
@@ -57,7 +54,7 @@ function App() {
     content: null
   });
   
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const { theme, background } = useTheme();
 
   const handleDrag = (type: 'text' | 'image', data: { x: number; y: number }) => {
@@ -96,44 +93,41 @@ function App() {
       return;
     }
 
-    setIsExporting(true);
+    if (canvasRef.current) {
+      try {
+        const dataUrl = canvasRef.current.toDataURL('image/png');
+        
+        if (user) {
+          await saveFolderIcon({
+            userId: user.uid,
+            name: folderName,
+            image: selectedImage,
+            imageSettings,
+            overlayImage: overlaySettings.image ? overlaySettings : null,
+            overlayText: textSettings.text ? textSettings : null,
+            drawing: null,
+            shapes: null
+          });
+          toast.success('Icône sauvegardée avec succès !');
+          setHasUnsavedChanges(false);
+        }
 
-    try {
-      const pngBlob = await createPNGBlob(
-        selectedImage,
-        imageSettings,
-        overlaySettings,
-        textSettings
-      );
-
-      const url = URL.createObjectURL(pngBlob);
-      const link = document.createElement('a');
-      link.download = `${folderName}.png`;
-      link.href = url;
-      link.click();
-      URL.revokeObjectURL(url);
-      
-      if (user) {
-        await saveFolderIcon({
-          userId: user.uid,
-          name: folderName,
-          image: selectedImage,
-          imageSettings,
-          overlayImage: overlaySettings.image ? overlaySettings : null,
-          overlayText: textSettings.text ? textSettings : null,
-          drawing: null,
-          shapes: null
-        });
-        toast.success('Icône sauvegardée et téléchargée !');
-        setHasUnsavedChanges(false);
-      } else {
-        toast.success('Icône téléchargée !');
+        const link = document.createElement('a');
+        link.download = `${folderName}.png`;
+        link.href = dataUrl;
+        link.click();
+      } catch (error) {
+        toast.error('Erreur lors de la sauvegarde ou de l\'exportation');
       }
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      toast.success('Déconnexion réussie');
     } catch (error) {
-      console.error('Export error:', error);
-      toast.error('Erreur lors de l\'export');
-    } finally {
-      setIsExporting(false);
+      toast.error('Erreur lors de la déconnexion');
     }
   };
 
@@ -158,7 +152,46 @@ function App() {
       content: (
         <div>
           <p>Dernière mise à jour : 25/03/2025</p>
-          {/* ... reste du contenu de la politique de confidentialité ... */}
+
+          <p>Nous accordons une grande importance à la protection de vos données personnelles. Cette politique de confidentialité explique quelles informations nous collectons, comment nous les utilisons et quels sont vos droits.</p>
+
+          <h3>1. Informations collectées</h3>
+          <p>Nous collectons les données suivantes lorsque vous utilisez notre application :</p>
+          <ul>
+            <li>Informations de compte : Lorsque vous vous inscrivez, nous collectons votre adresse e-mail et toute information fournie via Firebase Authentication.</li>
+            <li>Données d'utilisation : Nous collectons des informations sur votre activité, telles que la création et la personnalisation d'icônes.</li>
+            <li>Fichiers et images : Toute image ou fichier importé est stocké de manière sécurisée sur Firebase Storage.</li>
+          </ul>
+
+          <h3>2. Utilisation des données</h3>
+          <p>Vos données sont utilisées pour :</p>
+          <ul>
+            <li>Fournir et améliorer nos services</li>
+            <li>Sauvegarder et restaurer vos icônes personnalisées</li>
+            <li>Garantir la sécurité de votre compte</li>
+            <li>Vous envoyer des notifications si nécessaire</li>
+          </ul>
+
+          <h3>3. Partage des données</h3>
+          <p>Nous ne vendons ni ne partageons vos données personnelles avec des tiers, sauf dans les cas suivants :</p>
+          <ul>
+            <li>Conformité à une obligation légale</li>
+            <li>Protection de nos droits et prévention des fraudes</li>
+          </ul>
+
+          <h3>4. Sécurité</h3>
+          <p>Nous utilisons Firebase pour assurer un stockage sécurisé de vos données. Vos informations sont cryptées et protégées contre tout accès non autorisé.</p>
+
+          <h3>5. Vos droits</h3>
+          <p>Vous pouvez à tout moment :</p>
+          <ul>
+            <li>Accéder à vos données personnelles</li>
+            <li>Supprimer votre compte et vos fichiers stockés</li>
+            <li>Modifier vos préférences de confidentialité</li>
+          </ul>
+
+          <h3>6. Contact</h3>
+          <p>Pour toute question concernant cette politique, contactez-nous à : kristopher@meunierdigital.fr</p>
         </div>
       )
     });
@@ -171,7 +204,32 @@ function App() {
       content: (
         <div>
           <p>Dernière mise à jour : 25/03/2025</p>
-          {/* ... reste du contenu des conditions d'utilisation ... */}
+
+          <h3>1. Acceptation des termes</h3>
+          <p>En accédant et en utilisant notre application, vous acceptez ces conditions d'utilisation. Si vous n'adhérez pas à ces conditions, veuillez ne pas utiliser l'application.</p>
+
+          <h3>2. Accès et inscription</h3>
+          <p>L'inscription à l'application est requise pour utiliser certaines fonctionnalités. Vous êtes responsable de la confidentialité de vos informations de connexion.</p>
+
+          <h3>3. Utilisation des services</h3>
+          <p>Vous acceptez de ne pas :</p>
+          <ul>
+            <li>Utiliser l'application à des fins illégales ou frauduleuses</li>
+            <li>Télécharger du contenu offensant ou protégé par des droits d'auteur sans autorisation</li>
+            <li>Tenter d'accéder à des données d'autres utilisateurs</li>
+          </ul>
+
+          <h3>4. Responsabilité</h3>
+          <p>Nous fournissons notre service "en l'état" sans garantie d'absence de bugs. Nous ne serons pas responsables des pertes de données.</p>
+
+          <h3>5. Résiliation</h3>
+          <p>Nous nous réservons le droit de suspendre ou de supprimer un compte en cas de violation des présentes conditions.</p>
+
+          <h3>6. Modification des conditions</h3>
+          <p>Nous nous réservons le droit de modifier ces conditions à tout moment. Les utilisateurs seront informés en cas de changements importants.</p>
+
+          <h3>7. Contact</h3>
+          <p>Pour toute question, contactez-nous à : kristopher@meunierdigital.fr</p>
         </div>
       )
     });
@@ -326,25 +384,13 @@ function App() {
                   </div>
                 </div>
 
-                <div className="flex justify-center mb-6">
-                  <button
-                    onClick={handleExport}
-                    disabled={isExporting}
-                    className="w-[512px] flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isExporting ? (
-                      <>
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                        <span>Export en cours...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Download size={20} />
-                        <span>{user ? 'Sauvegarder et télécharger' : 'Télécharger'}</span>
-                      </>
-                    )}
-                  </button>
-                </div>
+                <button
+                  onClick={handleExport}
+                  className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 rounded-xl transition-all duration-300 text-lg font-medium shadow-lg hover:shadow-xl"
+                >
+                  <Download size={24} />
+                  {user ? 'Sauvegarder et télécharger' : 'Télécharger'}
+                </button>
               </div>
 
               <div className="flex">
@@ -407,7 +453,7 @@ function App() {
                 Abandonner
               </button>
               <button
-                onClick={() => handleExport()}
+                onClick={handleExport}
                 className="px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 rounded-xl transition-all duration-300"
               >
                 Sauvegarder

@@ -44,7 +44,6 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
       setIsLoading(true);
       await updateProfile(user, { displayName });
       toast.success('Profil mis à jour');
-      onClose();
     } catch (error) {
       toast.error('Erreur lors de la mise à jour du profil');
     } finally {

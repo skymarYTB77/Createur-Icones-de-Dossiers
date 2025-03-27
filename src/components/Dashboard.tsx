@@ -56,6 +56,7 @@ export function Dashboard({ isOpen, onClose, onEdit }: DashboardProps) {
     
     if (ctx) {
       const img = new Image();
+      img.crossOrigin = "anonymous"; // Ajout de l'attribut crossOrigin
       img.onload = () => {
         ctx.filter = `
           brightness(${icon.imageSettings.brightness}%)
@@ -66,11 +67,18 @@ export function Dashboard({ isOpen, onClose, onEdit }: DashboardProps) {
 
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-        const url = canvas.toDataURL('image/png');
-        const link = document.createElement('a');
-        link.download = `${icon.name}.png`;
-        link.href = url;
-        link.click();
+        try {
+          const url = canvas.toDataURL('image/png');
+          const link = document.createElement('a');
+          link.download = `${icon.name}.png`;
+          link.href = url;
+          link.click();
+        } catch (error) {
+          toast.error('Erreur lors du téléchargement de l\'image');
+        }
+      };
+      img.onerror = () => {
+        toast.error('Erreur lors du chargement de l\'image');
       };
       img.src = icon.image;
     }

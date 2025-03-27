@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import { X, Upload, Trash2, Lock, UserX } from 'lucide-react';
-import { useTheme } from '../contexts/ThemeContext';
+import { X, Upload, Trash2, AlertTriangle, Lock, Image, LogOut } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { updatePassword, EmailAuthProvider, reauthenticateWithCredential, deleteUser } from 'firebase/auth';
+import { updatePassword, deleteUser, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
 import toast from 'react-hot-toast';
 
 interface SettingsModalProps {
@@ -10,10 +9,13 @@ interface SettingsModalProps {
   onClose: () => void;
 }
 
+type TabType = 'background' | 'security' | 'data';
+
 export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
-  const { background, setBackground } = useTheme();
   const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState<TabType>('background');
   const [backgroundUrl, setBackgroundUrl] = useState('');
+  const [background, setBackground] = useState<string | null>(localStorage.getItem('background'));
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -26,7 +28,9 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     if (file) {
       const reader = new FileReader();
       reader.onload = (e) => {
-        setBackground(e.target?.result as string);
+        const result = e.target?.result as string;
+        setBackground(result);
+        localStorage.setItem('background', result);
       };
       reader.readAsDataURL(file);
     }
@@ -36,8 +40,14 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     e.preventDefault();
     if (backgroundUrl) {
       setBackground(backgroundUrl);
+      localStorage.setItem('background', backgroundUrl);
       setBackgroundUrl('');
     }
+  };
+
+  const clearBackground = () => {
+    setBackground(null);
+    localStorage.removeItem('background');
   };
 
   const clearCache = () => {
@@ -80,6 +90,12 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     }
   };
 
+  const tabs: { id: TabType; label: string; icon: typeof Image }[] = [
+    { id: 'background', label: 'Fond d\'écran', icon: Image },
+    { id: 'security', label: 'Sécurité', icon: Lock },
+    { id: 'data', label: 'Données', icon: Trash2 },
+  ];
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-[#1a1a3a] rounded-xl p-8 max-w-md w-full">
@@ -93,10 +109,25 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           </button>
         </div>
 
-        <div className="space-y-8">
-          {/* Fond d'écran */}
-          <section>
-            <h3 className="text-lg font-medium text-white mb-4">Fond d'écran</h3>
+        <div className="flex gap-2 mb-6">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                activeTab === tab.id
+                  ? 'bg-blue-500 text-white'
+                  : 'text-gray-400 hover:bg-[#2a2a5a]'
+              }`}
+            >
+              <tab.icon size={20} />
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="space-y-6">
+          {activeTab === 'background' && (
             <div className="space-y-4">
               {/* Upload */}
               <div className="border-2 border-dashed border-[#3a3a7a] rounded-lg p-4 text-center cursor-pointer hover:border-blue-500 transition-colors">
@@ -135,23 +166,19 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
               {background && (
                 <button
-                  onClick={() => setBackground(null)}
+                  onClick={clearBackground}
                   className="w-full py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
                 >
                   Supprimer le fond
                 </button>
               )}
             </div>
-          </section>
+          )}
 
-          {/* Sécurité */}
-          <section>
-            <h3 className="text-lg font-medium text-white mb-4 flex items-center gap-2">
-              <Lock size={20} />
-              Sécurité
-            </h3>
+          {activeTab === 'security' && (
             <div className="space-y-4">
-              <div className="space-y-2">
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium text-white">Changer le mot de passe</h3>
                 <input
                   type="password"
                   value={currentPassword}
@@ -174,13 +201,52 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   Mettre à jour le mot de passe
                 </button>
               </div>
-            </div>
-          </section>
 
-          {/* Données */}
-          <section>
-            <h3 className="text-lg font-medium text-white mb-4">Données</h3>
-            <div className="space-y-4">
+              <div className="pt-4 border-t border-[#2a2a5a]">
+                <button
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="w-full py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors flex items-center justify-center gap-2"
+                >
+                  <LogOut size={20} />
+                  Supprimer le compte
+                </button>
+
+                {showDeleteConfirm && (
+                  <div className="mt-4 space-y-4 p-4 bg-red-500/10 rounded-lg">
+                    <div className="flex items-center gap-2 text-red-400">
+                      <AlertTriangle size={20} />
+                      <p>Cette action est irréversible</p>
+                    </div>
+                    <input
+                      type="password"
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                      className="w-full px-3 py-2 bg-[#2a2a5a] border border-[#3a3a7a] rounded-lg text-white"
+                      placeholder="Confirmez votre mot de passe"
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setShowDeleteConfirm(false)}
+                        className="flex-1 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+                      >
+                        Annuler
+                      </button>
+                      <button
+                        onClick={handleDeleteAccount}
+                        disabled={!currentPassword}
+                        className="flex-1 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
+                      >
+                        Confirmer la suppression
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'data' && (
+            <div>
               <button
                 onClick={clearCache}
                 className="w-full py-2 bg-[#2a2a5a] text-white rounded-lg hover:bg-[#3a3a7a] transition-colors flex items-center justify-center gap-2"
@@ -189,49 +255,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 Vider le cache
               </button>
             </div>
-          </section>
-
-          {/* Danger */}
-          <section>
-            <h3 className="text-lg font-medium text-red-500 mb-4 flex items-center gap-2">
-              <UserX size={20} />
-              Zone de danger
-            </h3>
-            {!showDeleteConfirm ? (
-              <button
-                onClick={() => setShowDeleteConfirm(true)}
-                className="w-full py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
-              >
-                Supprimer le compte
-              </button>
-            ) : (
-              <div className="space-y-4 p-4 bg-red-500/10 rounded-lg">
-                <p className="text-red-400">Cette action est irréversible. Entrez votre mot de passe pour confirmer.</p>
-                <input
-                  type="password"
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  className="w-full px-3 py-2 bg-[#2a2a5a] border border-[#3a3a7a] rounded-lg text-white"
-                  placeholder="Confirmez votre mot de passe"
-                />
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setShowDeleteConfirm(false)}
-                    className="flex-1 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
-                  >
-                    Annuler
-                  </button>
-                  <button
-                    onClick={handleDeleteAccount}
-                    disabled={!currentPassword}
-                    className="flex-1 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
-                  >
-                    Confirmer la suppression
-                  </button>
-                </div>
-              </div>
-            )}
-          </section>
+          )}
         </div>
       </div>
     </div>
