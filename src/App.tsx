@@ -3,6 +3,7 @@ import { Sidebar } from './components/Sidebar';
 import { TextTool } from './components/tools/TextTool';
 import { ImageTool } from './components/tools/ImageTool';
 import { FolderTool } from './components/tools/FolderTool';
+import { ExportTool } from './components/tools/ExportTool';
 import { IconCanvas } from './components/IconCanvas';
 import { defaultImageSettings, defaultOverlaySettings, defaultTextSettings } from './types/folder';
 import { Download, LayoutDashboard, ArrowLeft, X } from 'lucide-react';
@@ -15,7 +16,7 @@ import { ProfileModal } from './components/ProfileModal';
 import { SettingsModal } from './components/SettingsModal';
 import { useTheme } from './contexts/ThemeContext';
 import { saveFolderIcon } from './services/folders';
-import { createIcoBlob } from './utils/iconConverter';
+import { createIcoBlob, createPNGBlob } from './utils/iconConverter';
 import toast from 'react-hot-toast';
 
 const folderImages = [
@@ -45,6 +46,7 @@ function App() {
   const [canvasRef] = useState<React.RefObject<HTMLCanvasElement>>(React.createRef());
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [legalModal, setLegalModal] = useState<{
     isOpen: boolean;
     title: string;
@@ -83,7 +85,7 @@ function App() {
     setHasUnsavedChanges(false);
   };
 
-  const handleExport = async () => {
+  const handleExport = async (format: 'ico' | 'png') => {
     if (!selectedImage) {
       toast.error('Veuillez sélectionner une image');
       return;
@@ -94,14 +96,26 @@ function App() {
       return;
     }
 
+    setIsExporting(true);
+
     try {
-      // Créer le blob ICO
-      const icoBlob = await createIcoBlob(
-        selectedImage,
-        imageSettings,
-        overlaySettings,
-        textSettings
-      );
+      let blob: Blob;
+      
+      if (format === 'ico') {
+        blob = await createIcoBlob(
+          selectedImage,
+          imageSettings,
+          overlaySettings,
+          textSettings
+        );
+      } else {
+        blob = await createPNGBlob(
+          selectedImage,
+          imageSettings,
+          overlaySettings,
+          textSettings
+        );
+      }
       
       // Sauvegarder dans Firebase si l'utilisateur est connecté
       if (user) {
@@ -119,16 +133,20 @@ function App() {
         setHasUnsavedChanges(false);
       }
 
-      // Télécharger le fichier ICO
-      const url = URL.createObjectURL(icoBlob);
+      // Télécharger le fichier
+      const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
-      link.download = `${folderName}.ico`;
+      link.download = `${folderName}.${format}`;
       link.href = url;
       link.click();
       URL.revokeObjectURL(url);
+      
+      toast.success(`Export en ${format.toUpperCase()} réussi !`);
     } catch (error) {
-      toast.error('Erreur lors de la sauvegarde ou de l\'exportation');
       console.error('Export error:', error);
+      toast.error('Erreur lors de l\'export');
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -277,6 +295,13 @@ function App() {
             }}
           />
         );
+      case 'format':
+        return (
+          <ExportTool
+            isExporting={isExporting}
+            onExport={handleExport}
+          />
+        );
       default:
         return null;
     }
@@ -393,14 +418,6 @@ function App() {
                     />
                   </div>
                 </div>
-
-                <button
-                  onClick={handleExport}
-                  className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 rounded-xl transition-all duration-300 text-lg font-medium shadow-lg hover:shadow-xl"
-                >
-                  <Download size={24} />
-                  {user ? 'Sauvegarder et télécharger' : 'Télécharger'}
-                </button>
               </div>
 
               <div className="flex">
@@ -463,7 +480,7 @@ function App() {
                 Abandonner
               </button>
               <button
-                onClick={handleExport}
+                onClick={() => handleExport('png')}
                 className="px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 rounded-xl transition-all duration-300"
               >
                 Sauvegarder
