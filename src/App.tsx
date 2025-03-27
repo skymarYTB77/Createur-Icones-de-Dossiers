@@ -16,7 +16,7 @@ import { ProfileModal } from './components/ProfileModal';
 import { SettingsModal } from './components/SettingsModal';
 import { useTheme } from './contexts/ThemeContext';
 import { saveFolderIcon } from './services/folders';
-import { createIcoBlob, createPNGBlob } from './utils/iconConverter';
+import { createPNGBlob } from './utils/iconConverter';
 import toast from 'react-hot-toast';
 
 const folderImages = [
@@ -99,25 +99,52 @@ function App() {
     setIsExporting(true);
 
     try {
-      let blob: Blob;
-      
-      if (format === 'ico') {
-        blob = await createIcoBlob(
-          selectedImage,
-          imageSettings,
-          overlaySettings,
-          textSettings
-        );
+      const pngBlob = await createPNGBlob(
+        selectedImage,
+        imageSettings,
+        overlaySettings,
+        textSettings
+      );
+
+      if (format === 'png') {
+        const url = URL.createObjectURL(pngBlob);
+        const link = document.createElement('a');
+        link.download = `${folderName}.png`;
+        link.href = url;
+        link.click();
+        URL.revokeObjectURL(url);
       } else {
-        blob = await createPNGBlob(
-          selectedImage,
-          imageSettings,
-          overlaySettings,
-          textSettings
-        );
+        const formData = new FormData();
+        formData.append('file', pngBlob, 'icon.png');
+
+        const response = await fetch('https://api.cloudconvert.com/v2/convert', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer YOUR_API_KEY',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            input_format: 'png',
+            output_format: 'ico',
+            file: formData
+          })
+        });
+
+        const data = await response.json();
+        
+        if (data.data && data.data.result) {
+          const icoResponse = await fetch(data.data.result.url);
+          const icoBlob = await icoResponse.blob();
+          
+          const url = URL.createObjectURL(icoBlob);
+          const link = document.createElement('a');
+          link.download = `${folderName}.ico`;
+          link.href = url;
+          link.click();
+          URL.revokeObjectURL(url);
+        }
       }
       
-      // Sauvegarder dans Firebase si l'utilisateur est connecté
       if (user) {
         await saveFolderIcon({
           userId: user.uid,
@@ -133,14 +160,6 @@ function App() {
         setHasUnsavedChanges(false);
       }
 
-      // Télécharger le fichier
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.download = `${folderName}.${format}`;
-      link.href = url;
-      link.click();
-      URL.revokeObjectURL(url);
-      
       toast.success(`Export en ${format.toUpperCase()} réussi !`);
     } catch (error) {
       console.error('Export error:', error);
@@ -417,6 +436,16 @@ function App() {
                       onDrag={(type, x, y) => handleDrag(type, { x, y })}
                     />
                   </div>
+                </div>
+
+                <div className="flex justify-end gap-4">
+                  <button
+                    onClick={() => handleExport('png')}
+                    className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 rounded-xl transition-all duration-300"
+                  >
+                    <Download size={20} />
+                    Sauvegarder et télécharger
+                  </button>
                 </div>
               </div>
 

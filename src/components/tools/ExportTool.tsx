@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { FileIcon, Download, Loader2, Save } from 'lucide-react';
+import React from 'react';
+import { FileIcon, Download } from 'lucide-react';
 
 interface ExportToolProps {
   isExporting: boolean;
@@ -7,17 +7,8 @@ interface ExportToolProps {
 }
 
 export function ExportTool({ isExporting, onExport }: ExportToolProps) {
-  const [selectedFormat, setSelectedFormat] = useState<'ico' | 'png'>(() => {
-    const saved = localStorage.getItem('preferredFormat');
-    return (saved === 'ico' || saved === 'png') ? saved : 'png';
-  });
-
-  useEffect(() => {
-    localStorage.setItem('preferredFormat', selectedFormat);
-  }, [selectedFormat]);
-
   return (
-    <div className="p-4 space-y-6">
+    <div className="p-4">
       <h3 className="text-lg font-medium text-gray-800 mb-4">Format</h3>
       
       <div className="space-y-4">
@@ -25,16 +16,13 @@ export function ExportTool({ isExporting, onExport }: ExportToolProps) {
           <input
             type="radio"
             name="format"
-            checked={selectedFormat === 'ico'}
-            onChange={() => setSelectedFormat('ico')}
+            value="ico"
+            onChange={(e) => onExport(e.target.value as 'ico' | 'png')}
             className="w-5 h-5 text-blue-500"
           />
           <div className="flex items-center gap-3">
-            <FileIcon size={24} className="text-blue-500" />
-            <div>
-              <div className="font-medium">Fichier ICO</div>
-              <div className="text-sm text-gray-500">Format Windows standard pour les icônes</div>
-            </div>
+            <FileIcon size={24} className="text-black" />
+            <div className="font-medium text-black">ICO</div>
           </div>
         </label>
 
@@ -42,42 +30,16 @@ export function ExportTool({ isExporting, onExport }: ExportToolProps) {
           <input
             type="radio"
             name="format"
-            checked={selectedFormat === 'png'}
-            onChange={() => setSelectedFormat('png')}
+            value="png"
+            defaultChecked
+            onChange={(e) => onExport(e.target.value as 'ico' | 'png')}
             className="w-5 h-5 text-blue-500"
           />
           <div className="flex items-center gap-3">
-            <Download size={24} className="text-green-500" />
-            <div>
-              <div className="font-medium">Image PNG</div>
-              <div className="text-sm text-gray-500">Format haute qualité avec transparence</div>
-            </div>
+            <Download size={24} className="text-black" />
+            <div className="font-medium text-black">PNG</div>
           </div>
         </label>
-
-        <button
-          onClick={() => onExport(selectedFormat)}
-          disabled={isExporting}
-          className="w-full flex items-center justify-center gap-2 p-4 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {isExporting ? (
-            <Loader2 className="animate-spin" size={24} />
-          ) : (
-            <>
-              <Download size={20} />
-              <span>Télécharger</span>
-            </>
-          )}
-        </button>
-      </div>
-
-      <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-        <h4 className="font-medium text-blue-900 mb-2">Informations</h4>
-        <ul className="text-sm text-blue-800 space-y-2">
-          <li>• Le format ICO inclut plusieurs tailles pour une compatibilité optimale</li>
-          <li>• Le format PNG est idéal pour une utilisation web ou personnalisée</li>
-          <li>• La conversion peut prendre quelques secondes selon la complexité</li>
-        </ul>
       </div>
     </div>
   );
