@@ -113,36 +113,85 @@ function App() {
         link.href = url;
         link.click();
         URL.revokeObjectURL(url);
+        toast.success('Export en PNG réussi !');
       } else {
         const formData = new FormData();
         formData.append('file', pngBlob, 'icon.png');
 
-        const response = await fetch('https://api.cloudconvert.com/v2/convert', {
+        const response = await fetch('https://api.cloudconvert.com/v2/jobs', {
           method: 'POST',
           headers: {
-            'Authorization': 'Bearer YOUR_API_KEY',
+            'Authorization': 'Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiIxIiwianRpIjoiZjQ1ZjIxN2QzN2Y1YzdjZGNiNzg4YmU0YjM5MzNlZmQ2ZGYxN2FiOWM1MTRjNzliZWJhYjA3NWY5NDU3MjEzOWI2MzQ3ZTkwYjFiYjgyYTIiLCJpYXQiOjE3NDMwNzUxODguNTgyMzY1LCJuYmYiOjE3NDMwNzUxODguNTgyMzY2LCJleHAiOjQ4OTg3NDg3ODguNTc2NjkzLCJzdWIiOiI3MTQ2MjM4NCIsInNjb3BlcyI6WyJ1c2VyLnJlYWQiLCJ1c2VyLndyaXRlIiwidGFzay5yZWFkIiwidGFzay53cml0ZSIsIndlYmhvb2sucmVhZCIsIndlYmhvb2sud3JpdGUiLCJwcmVzZXQucmVhZCIsInByZXNldC53cml0ZSJdfQ.ZMZT3uzxp4_bU7BXZrYnH4fixyjIY-jJ5DPRedP_LWQrWdNSL4qiM-3AalpS23N12rbSWMP6gcWH2ECDF4MRXhasXOtnTiG0Adgajlcx38jBkNaLap2FR_UCjni6GhqkHIyaUj1HimfzEKFOHKTpuyyhkZkcF72HM9KkpJtoxB3pRKMKJLjq8jxSDcAicvt-ZFBDK-wVujTlVB78mn1dJIq3KezCbHMJq3i321ExQPj7LzXVZQANrORtgiRhyA5_lm2YczOY9E6jZTMQWyUOEOHB6vLRDmvCj-pHkH9ZyyjqD7QOdYLYaO1C7QsgX9D_15nlx-PV5MxOMc85ysREnn1yrfDfu4XIn0iEBQR-ImTnGoVf5zvYl-3-tE5qoCsYnRPiNu-pnYfLa42wy3rdurSar39c67Nz9b1_1yZGpE8vvxuQgH8X7Y-p0pelgrA5BnyqEZQQK7gnPLUipfWncGldboUOjMBPMKQBXF61dHurL98_BUeL0N1jnxYIe9jIGwvzHzwXPzphA0bPyw-3hm8DquOsJlf0b0VIGQk5AsLk0g_YlShpoYR3BmVqUgwRgtFklyi7JakWSUPjTQ69eCbxlXuQKECvM0DXAOAAuYgKoISohbSvCqDF8aGBiDafnAlPjKGHpCVuL-eHnukwlKyzITJBnYbZ7kSDCWbq118',
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            input_format: 'png',
-            output_format: 'ico',
-            file: formData
+            tasks: {
+              'import-file': {
+                operation: 'import/upload'
+              },
+              'convert-file': {
+                operation: 'convert',
+                input: ['import-file'],
+                output_format: 'ico'
+              },
+              'export-file': {
+                operation: 'export/url',
+                input: ['convert-file']
+              }
+            }
           })
         });
 
-        const data = await response.json();
+        const jobData = await response.json();
         
-        if (data.data && data.data.result) {
-          const icoResponse = await fetch(data.data.result.url);
-          const icoBlob = await icoResponse.blob();
+        // Upload the file
+        const uploadTask = jobData.data.tasks.find((task: any) => task.name === 'import-file');
+        const uploadUrl = uploadTask.result.form.url;
+        const uploadFormData = new FormData();
+        
+        Object.entries(uploadTask.result.form.parameters).forEach(([key, value]) => {
+          uploadFormData.append(key, value as string);
+        });
+        uploadFormData.append('file', pngBlob);
+        
+        await fetch(uploadUrl, {
+          method: 'POST',
+          body: uploadFormData
+        });
+
+        // Wait for the job to complete
+        const jobId = jobData.data.id;
+        let exportUrl = '';
+        
+        while (!exportUrl) {
+          const statusResponse = await fetch(`https://api.cloudconvert.com/v2/jobs/${jobId}`, {
+            headers: {
+              'Authorization': 'Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiIxIiwianRpIjoiZjQ1ZjIxN2QzN2Y1YzdjZGNiNzg4YmU0YjM5MzNlZmQ2ZGYxN2FiOWM1MTRjNzliZWJhYjA3NWY5NDU3MjEzOWI2MzQ3ZTkwYjFiYjgyYTIiLCJpYXQiOjE3NDMwNzUxODguNTgyMzY1LCJuYmYiOjE3NDMwNzUxODguNTgyMzY2LCJleHAiOjQ4OTg3NDg3ODguNTc2NjkzLCJzdWIiOiI3MTQ2MjM4NCIsInNjb3BlcyI6WyJ1c2VyLnJlYWQiLCJ1c2VyLndyaXRlIiwidGFzay5yZWFkIiwidGFzay53cml0ZSIsIndlYmhvb2sucmVhZCIsIndlYmhvb2sud3JpdGUiLCJwcmVzZXQucmVhZCIsInByZXNldC53cml0ZSJdfQ.ZMZT3uzxp4_bU7BXZrYnH4fixyjIY-jJ5DPRedP_LWQrWdNSL4qiM-3AalpS23N12rbSWMP6gcWH2ECDF4MRXhasXOtnTiG0Adgajlcx38jBkNaLap2FR_UCjni6GhqkHIyaUj1HimfzEKFOHKTpuyyhkZkcF72HM9KkpJtoxB3pRKMKJLjq8jxSDcAicvt-ZFBDK-wVujTlVB78mn1dJIq3KezCbHMJq3i321ExQPj7LzXVZQANrORtgiRhyA5_lm2YczOY9E6jZTMQWyUOEOHB6vLRDmvCj-pHkH9ZyyjqD7QOdYLYaO1C7QsgX9D_15nlx-PV5MxOMc85ysREnn1yrfDfu4XIn0iEBQR-ImTnGoVf5zvYl-3-tE5qoCsYnRPiNu-pnYfLa42wy3rdurSar39c67Nz9b1_1yZGpE8vvxuQgH8X7Y-p0pelgrA5BnyqEZQQK7gnPLUipfWncGldboUOjMBPMKQBXF61dHurL98_BUeL0N1jnxYIe9jIGwvzHzwXPzphA0bPyw-3hm8DquOsJlf0b0VIGQk5AsLk0g_YlShpoYR3BmVqUgwRgtFklyi7JakWSUPjTQ69eCbxlXuQKECvM0DXAOAAuYgKoISohbSvCqDF8aGBiDafnAlPjKGHpCVuL-eHnukwlKyzITJBnYbZ7kSDCWbq118'
+            }
+          });
           
-          const url = URL.createObjectURL(icoBlob);
-          const link = document.createElement('a');
-          link.download = `${folderName}.ico`;
-          link.href = url;
-          link.click();
-          URL.revokeObjectURL(url);
+          const statusData = await statusResponse.json();
+          const exportTask = statusData.data.tasks.find((task: any) => task.name === 'export-file');
+          
+          if (exportTask?.status === 'finished') {
+            exportUrl = exportTask.result.files[0].url;
+            break;
+          }
+          
+          await new Promise(resolve => setTimeout(resolve, 1000));
         }
+
+        // Download the converted file
+        const icoResponse = await fetch(exportUrl);
+        const icoBlob = await icoResponse.blob();
+        
+        const url = URL.createObjectURL(icoBlob);
+        const link = document.createElement('a');
+        link.download = `${folderName}.ico`;
+        link.href = url;
+        link.click();
+        URL.revokeObjectURL(url);
+        toast.success('Export en ICO réussi !');
       }
       
       if (user) {
@@ -159,8 +208,6 @@ function App() {
         toast.success('Icône sauvegardée avec succès !');
         setHasUnsavedChanges(false);
       }
-
-      toast.success(`Export en ${format.toUpperCase()} réussi !`);
     } catch (error) {
       console.error('Export error:', error);
       toast.error('Erreur lors de l\'export');
