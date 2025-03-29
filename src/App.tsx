@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { TextTool } from './components/tools/TextTool';
 import { ImageTool } from './components/tools/ImageTool';
 import { FolderTool } from './components/tools/FolderTool';
+import { FormatTool } from './components/tools/FormatTool';
 import { IconCanvas } from './components/IconCanvas';
-import { defaultImageSettings, defaultOverlaySettings, defaultTextSettings } from './types/folder';
+import { defaultImageSettings, defaultOverlaySettings, defaultTextSettings, ExportFormat } from './types/folder';
 import { Download, LayoutDashboard, ArrowLeft, X } from 'lucide-react';
 import { useAuth } from './contexts/AuthContext';
 import { AuthModal } from './components/AuthModal';
@@ -37,6 +38,7 @@ function App() {
   const [overlaySettings, setOverlaySettings] = useState<OverlaySettings>(defaultOverlaySettings);
   const [textSettings, setTextSettings] = useState<TextSettings>(defaultTextSettings);
   const [activeTab, setActiveTab] = useState('folder');
+  const [exportFormat, setExportFormat] = useState<ExportFormat>('png');
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isDashboardOpen, setIsDashboardOpen] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -82,6 +84,163 @@ function App() {
     setHasUnsavedChanges(false);
   };
 
+  const convertToIco = async (canvas: HTMLCanvasElement): Promise<Blob> => {
+    const ICON_SIZES = [
+      { width: 16, height: 16, usePNG: false },
+      { width: 32, height: 32, usePNG: false },
+      { width: 48, height: 48, usePNG: false },
+      { width: 64, height: 64, usePNG: false },
+      { width: 128, height: 128, usePNG: true },
+      { width: 256, height: 256, usePNG: true }
+    ];
+
+    const createIconHeader = (numImages: number) => {
+      const buffer = new ArrayBuffer(6);
+      const view = new DataView(buffer);
+      view.setInt16(0, 0, true); // Reserved
+      view.setInt16(2, 1, true); // ICO type
+      view.setInt16(4, numImages, true); // Number of images
+      return buffer;
+    };
+
+    const createIconDirectoryEntry = (width: number, height: number, size: number, offset: number) => {
+      const buffer = new ArrayBuffer(16);
+      const view = new DataView(buffer);
+      view.setInt8(0, width === 256 ? 0 : width);
+      view.setInt8(1, height === 256 ? 0 : height);
+      view.setInt8(2, 0); // Color palette
+      view.setInt8(3, 0); // Reserved
+      view.setInt16(4, 1, true); // Color planes
+      view.setInt16(6, 32, true); // Bits per pixel
+      view.setInt32(8, size, true); // Image size
+      view.setInt32(12, offset, true); // Image offset
+      return buffer;
+    };
+
+    const createBMPHeader = (width: number, height: number) => {
+      const buffer = new ArrayBuffer(40);
+      const view = new DataView(buffer);
+      view.setInt32(0, 40, true); // Header size
+      view.setInt32(4, width, true);
+      view.setInt32(8, height * 2, true); // Height is doubled for BMP
+      view.setInt16(12, 1, true); // Planes
+      view.setInt16(14, 32, true); // Bits per pixel
+      view.setInt32(16, 0, true); // Compression
+      view.setInt32(20, 0, true); // Image size (can be 0 for uncompressed)
+      view.setInt32(24, 0, true); // X pixels per meter
+      view.setInt32(28, 0, true); // Y pixels per meter
+      view.setInt32(32, 0, true); // Colors in color table
+      view.setInt32(36, 0, true); // Important color count
+      return buffer;
+    };
+
+    const resizeImage = async (img: HTMLImageElement, width: number, height: number, usePNG: boolean): Promise<ArrayBuffer> => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = width;
+      canvas.height = height;
+
+      if (!ctx) throw new Error('Impossible de créer le contexte 2D');
+
+      ctx.clearRect(0, 0, width, height);
+      
+      const scale = Math.min(width / img.width, height / img.height);
+      const x = (width - img.width * scale) / 2;
+      const y = (height - img.height * scale) / 2;
+
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
+
+      if (!usePNG) {
+        const headerSize = 40;
+        const pixelDataSize = width * height * 4;
+        const buffer = new ArrayBuffer(headerSize + pixelDataSize);
+        const view = new Uint8Array(buffer);
+
+        const header = new Uint8Array(createBMPHeader(width, height));
+        view.set(header, 0);
+
+        const imageData = ctx.getImageData(0, 0, width, height);
+        const data = imageData.data;
+        
+        for (let y = 0; y < height; y++) {
+          for (let x = 0; x < width; x++) {
+            const sourceOffset = (y * width + x) * 4;
+            const targetOffset = headerSize + ((height - 1 - y) * width + x) * 4;
+            
+            view[targetOffset] = data[sourceOffset + 2];
+            view[targetOffset + 1] = data[sourceOffset + 1];
+            view[targetOffset + 2] = data[sourceOffset];
+            view[targetOffset + 3] = data[sourceOffset + 3];
+          }
+        }
+
+        return buffer;
+      } else {
+        return new Promise((resolve, reject) => {
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                blob.arrayBuffer().then(resolve).catch(reject);
+              } else {
+                reject(new Error('La conversion a échoué'));
+              }
+            },
+            'image/png'
+          );
+        });
+      }
+    };
+
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = async () => {
+        try {
+          const imageBuffers: { size: typeof ICON_SIZES[0]; buffer: ArrayBuffer }[] = [];
+
+          for (const size of ICON_SIZES) {
+            const buffer = await resizeImage(img, size.width, size.height, size.usePNG);
+            imageBuffers.push({ size, buffer });
+          }
+
+          const headerSize = 6;
+          const dirEntrySize = 16;
+          const dirEntriesSize = ICON_SIZES.length * dirEntrySize;
+          
+          let offset = headerSize + dirEntriesSize;
+          const totalSize = imageBuffers.reduce((sum, { buffer }) => sum + buffer.byteLength, offset);
+          
+          const finalBuffer = new ArrayBuffer(totalSize);
+          const finalArray = new Uint8Array(finalBuffer);
+
+          const headerBuffer = createIconHeader(ICON_SIZES.length);
+          finalArray.set(new Uint8Array(headerBuffer), 0);
+
+          let currentOffset = offset;
+          imageBuffers.forEach(({ size, buffer }, index) => {
+            const entry = createIconDirectoryEntry(size.width, size.height, buffer.byteLength, currentOffset);
+            finalArray.set(new Uint8Array(entry), headerSize + (index * dirEntrySize));
+            currentOffset += buffer.byteLength;
+          });
+
+          imageBuffers.forEach(({ buffer }, index) => {
+            const imageData = new Uint8Array(buffer);
+            const imageOffset = offset + imageBuffers
+              .slice(0, index)
+              .reduce((sum, { buffer }) => sum + buffer.byteLength, 0);
+            finalArray.set(imageData, imageOffset);
+          });
+
+          resolve(new Blob([finalBuffer], { type: 'image/x-icon' }));
+        } catch (err) {
+          reject(err);
+        }
+      };
+      img.src = canvas.toDataURL('image/png');
+    });
+  };
+
   const handleExport = async () => {
     if (!selectedImage) {
       toast.error('Veuillez sélectionner une image');
@@ -95,7 +254,15 @@ function App() {
 
     if (canvasRef.current) {
       try {
-        const dataUrl = canvasRef.current.toDataURL('image/png');
+        let dataUrl: string;
+        let blob: Blob;
+        
+        if (exportFormat === 'ico') {
+          blob = await convertToIco(canvasRef.current);
+          dataUrl = URL.createObjectURL(blob);
+        } else {
+          dataUrl = canvasRef.current.toDataURL('image/png');
+        }
         
         if (user) {
           await saveFolderIcon({
@@ -113,9 +280,13 @@ function App() {
         }
 
         const link = document.createElement('a');
-        link.download = `${folderName}.png`;
+        link.download = `${folderName}.${exportFormat}`;
         link.href = dataUrl;
         link.click();
+
+        if (exportFormat === 'ico') {
+          URL.revokeObjectURL(dataUrl);
+        }
       } catch (error) {
         toast.error('Erreur lors de la sauvegarde ou de l\'exportation');
       }
@@ -265,6 +436,13 @@ function App() {
               setOverlaySettings(newSettings);
               setHasUnsavedChanges(true);
             }}
+          />
+        );
+      case 'format':
+        return (
+          <FormatTool
+            format={exportFormat}
+            onChange={setExportFormat}
           />
         );
       default:

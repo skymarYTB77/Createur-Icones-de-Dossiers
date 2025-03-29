@@ -43,6 +43,8 @@ export interface Shape {
   color: string;
 }
 
+export type ExportFormat = 'png' | 'ico';
+
 export const defaultImageSettings: ImageSettings = {
   brightness: 100,
   contrast: 100,
