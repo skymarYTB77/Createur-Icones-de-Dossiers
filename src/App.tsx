@@ -482,9 +482,16 @@ function App() {
                   Retour
                 </button>
               )}
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-                Créateur d'Icônes de Dossier
-              </h1>
+              <div className="flex items-center gap-4">
+                <img
+                  src="https://res.cloudinary.com/dp1u62e2c/image/upload/v1743603652/Logo_xdcrfd.svg"
+                  alt="Logo"
+                  className="w-12 h-12"
+                />
+                <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                  Créateur d'Icônes de Dossier
+                </h1>
+              </div>
             </div>
             <div className="flex items-center gap-4">
               {user && (
