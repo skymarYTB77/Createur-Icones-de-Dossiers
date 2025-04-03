@@ -19,16 +19,16 @@ import { saveFolderIcon } from './services/folders';
 import toast from 'react-hot-toast';
 
 const folderImages = [
-  'https://res.cloudinary.com/dp1u62e2c/image/upload/v1742632209/dossier-removebg-preview_vmx772.png',
-  'https://res.cloudinary.com/dp1u62e2c/image/upload/v1742633743/dossier_1_igyqow.png',
-  'https://res.cloudinary.com/dp1u62e2c/image/upload/v1742633797/dossier-vide_grouhr.png',
-  'https://res.cloudinary.com/dp1u62e2c/image/upload/v1742633821/dossier_2_b4iamt.png',
-  'https://res.cloudinary.com/dp1u62e2c/image/upload/v1742633860/dossier_3_epivkr.png',
-  'https://res.cloudinary.com/dp1u62e2c/image/upload/v1742633931/dossier_4_pgdjmf.png',
-  'https://res.cloudinary.com/dp1u62e2c/image/upload/v1742633965/dossier_5_asmnp2.png',
-  'https://res.cloudinary.com/dp1u62e2c/image/upload/v1742634022/dossier-3d_qjd22a.png',
-  'https://res.cloudinary.com/dp1u62e2c/image/upload/v1742634042/dossier-de-presse_ui3p0z.png',
-  'https://res.cloudinary.com/dp1u62e2c/image/upload/v1742634357/test_5_zhadkl.png'
+  'https://res.cloudinary.com/dp1u62e2c/image/upload/v1743627455/Dossier_1_oyjjb9.svg',
+  'https://res.cloudinary.com/dp1u62e2c/image/upload/v1743627455/Dossier_2_lj5ivq.svg',
+  'https://res.cloudinary.com/dp1u62e2c/image/upload/v1743627459/Dossier_3_rrntkt.svg',
+  'https://res.cloudinary.com/dp1u62e2c/image/upload/v1743627455/Dossier_4_c2zhoj.svg',
+  'https://res.cloudinary.com/dp1u62e2c/image/upload/v1743627456/Dossier_5_rxykop.svg',
+  'https://res.cloudinary.com/dp1u62e2c/image/upload/v1743627457/Dossier_6_bpqhd6.svg',
+  'https://res.cloudinary.com/dp1u62e2c/image/upload/v1743627455/Dossier_7_dscdon.svg',
+  'https://res.cloudinary.com/dp1u62e2c/image/upload/v1743627458/Dossier_8_owljjd.svg',
+  'https://res.cloudinary.com/dp1u62e2c/image/upload/v1743627460/Dossier_9_cy8p9w.svg',
+  'https://res.cloudinary.com/dp1u62e2c/image/upload/v1743627455/Dossier_10_btmy1w.svg'
 ];
 
 function App() {
