@@ -19,16 +19,16 @@ import { saveFolderIcon } from './services/folders';
 import toast from 'react-hot-toast';
 
 const folderImages = [
-  'https://res.cloudinary.com/dp1u62e2c/image/upload/v1743627455/Dossier_1_oyjjb9.svg',
-  'https://res.cloudinary.com/dp1u62e2c/image/upload/v1743627455/Dossier_2_lj5ivq.svg',
-  'https://res.cloudinary.com/dp1u62e2c/image/upload/v1743627459/Dossier_3_rrntkt.svg',
-  'https://res.cloudinary.com/dp1u62e2c/image/upload/v1743627455/Dossier_4_c2zhoj.svg',
-  'https://res.cloudinary.com/dp1u62e2c/image/upload/v1743627456/Dossier_5_rxykop.svg',
-  'https://res.cloudinary.com/dp1u62e2c/image/upload/v1743627457/Dossier_6_bpqhd6.svg',
-  'https://res.cloudinary.com/dp1u62e2c/image/upload/v1743627455/Dossier_7_dscdon.svg',
-  'https://res.cloudinary.com/dp1u62e2c/image/upload/v1743627458/Dossier_8_owljjd.svg',
-  'https://res.cloudinary.com/dp1u62e2c/image/upload/v1743627460/Dossier_9_cy8p9w.svg',
-  'https://res.cloudinary.com/dp1u62e2c/image/upload/v1743627455/Dossier_10_btmy1w.svg'
+  'https://res.cloudinary.com/dp1u62e2c/image/upload/v1744367035/Dossier_1_tdyya5.svg',
+  'https://res.cloudinary.com/dp1u62e2c/image/upload/v1744367084/Dossier_2_mqxuiz.svg',
+  'https://res.cloudinary.com/dp1u62e2c/image/upload/v1744367099/Dossier_3_xonnal.svg',
+  'https://res.cloudinary.com/dp1u62e2c/image/upload/v1744367084/Dossier_4_xemajh.svg',
+  'https://res.cloudinary.com/dp1u62e2c/image/upload/v1744367084/Dossier_5_unvmzq.svg',
+  'https://res.cloudinary.com/dp1u62e2c/image/upload/v1744367083/Dossier_6_tios2h.svg',
+  'https://res.cloudinary.com/dp1u62e2c/image/upload/v1744367083/Dossier_7_gva1po.svg',
+  'https://res.cloudinary.com/dp1u62e2c/image/upload/v1744367086/Dossier_8_dl3p8r.svg',
+  'https://res.cloudinary.com/dp1u62e2c/image/upload/v1744367099/Dossier_9_dxlgoh.svg',
+  'https://res.cloudinary.com/dp1u62e2c/image/upload/v1744367084/Dossier_10_zuqdyt.svg'
 ];
 
 function App() {
