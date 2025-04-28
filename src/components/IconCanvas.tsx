@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { ImageSettings, OverlaySettings, TextSettings } from '../types/folder';
-import debounce from 'lodash.debounce';
 import WebFont from 'webfontloader';
 
 interface IconCanvasProps {
@@ -37,28 +36,14 @@ export const IconCanvas = React.forwardRef<HTMLCanvasElement, IconCanvasProps>((
 }, ref) => {
   const localCanvasRef = useRef<HTMLCanvasElement>(null);
   const canvasRef = (ref as React.RefObject<HTMLCanvasElement>) || localCanvasRef;
-  const bufferCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  const animationFrameRef = useRef<number>();
+  const mainImageRef = useRef<HTMLImageElement>();
+  const overlayImageRef = useRef<HTMLImageElement>();
+  const renderFrameRef = useRef<number>();
   
   const [isDragging, setIsDragging] = useState(false);
   const [dragTarget, setDragTarget] = useState<'text' | 'image' | null>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [currentPosition, setCurrentPosition] = useState({ x: 0, y: 0 });
-
-  // Créer le canvas tampon
-  useEffect(() => {
-    if (!bufferCanvasRef.current) {
-      const buffer = document.createElement('canvas');
-      buffer.width = width;
-      buffer.height = height;
-      bufferCanvasRef.current = buffer;
-    }
-    return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-    };
-  }, [width, height]);
 
   // Charger les polices Google
   useEffect(() => {
@@ -69,119 +54,112 @@ export const IconCanvas = React.forwardRef<HTMLCanvasElement, IconCanvasProps>((
     });
   }, []);
 
-  const drawCanvas = useCallback(() => {
-    const canvas = canvasRef.current;
-    const buffer = bufferCanvasRef.current;
-    if (!canvas || !buffer || !mainImage) return;
-
-    const ctx = buffer.getContext('2d');
-    const displayCtx = canvas.getContext('2d');
-    if (!ctx || !displayCtx) return;
-
-    // Nettoyer les canvas
-    ctx.clearRect(0, 0, width, height);
-    displayCtx.clearRect(0, 0, width, height);
-
-    // Dessiner l'image principale
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      // Appliquer les filtres
-      ctx.filter = `
-        brightness(${imageSettings.brightness}%)
-        contrast(${imageSettings.contrast}%)
-        saturate(${imageSettings.saturation}%)
-        hue-rotate(${imageSettings.hue}deg)
-      `;
-
-      // Dessiner l'image principale centrée
-      const scale = Math.min(width / img.width, height / img.height);
-      const x = (width - img.width * scale) / 2;
-      const y = (height - img.height * scale) / 2;
-      ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
-
-      // Réinitialiser les filtres
-      ctx.filter = 'none';
-
-      // Dessiner l'image superposée
-      if (overlaySettings.image) {
-        const overlayImg = new Image();
-        overlayImg.crossOrigin = 'anonymous';
-        overlayImg.onload = () => {
-          const overlayScale = overlaySettings.scale / 100;
-          const centerX = width / 2 + (isDragging && dragTarget === 'image' ? currentPosition.x : overlaySettings.x);
-          const centerY = height / 2 + (isDragging && dragTarget === 'image' ? currentPosition.y : overlaySettings.y);
-
-          ctx.save();
-          ctx.translate(centerX, centerY);
-          ctx.scale(overlayScale, overlayScale);
-          
-          if (isDragging && dragTarget === 'image') {
-            ctx.shadowColor = 'rgba(0, 0, 255, 0.3)';
-            ctx.shadowBlur = 10;
-          }
-          
-          ctx.drawImage(
-            overlayImg,
-            -overlayImg.width / 2,
-            -overlayImg.height / 2
-          );
-          ctx.restore();
-
-          // Dessiner le texte
-          if (textSettings.text) {
-            drawText(ctx);
-          }
-
-          // Copier le buffer vers le canvas d'affichage
-          displayCtx.drawImage(buffer, 0, 0);
-        };
-        overlayImg.src = overlaySettings.image;
-      } else if (textSettings.text) {
-        drawText(ctx);
-        displayCtx.drawImage(buffer, 0, 0);
-      } else {
-        displayCtx.drawImage(buffer, 0, 0);
-      }
-    };
-    img.src = mainImage;
-  }, [mainImage, imageSettings, overlaySettings, textSettings, width, height, isDragging, dragTarget, currentPosition]);
-
-  const debouncedDraw = useCallback(
-    debounce(() => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-      animationFrameRef.current = requestAnimationFrame(drawCanvas);
-    }, 50),
-    [drawCanvas]
-  );
-
+  // Précharger et mettre à jour les images
   useEffect(() => {
-    debouncedDraw();
-    return () => {
-      debouncedDraw.cancel();
-    };
-  }, [debouncedDraw]);
-
-  const drawText = (ctx: CanvasRenderingContext2D) => {
-    ctx.save();
-    ctx.font = `${textSettings.size}px "${textSettings.fontFamily}"`;
-    ctx.fillStyle = textSettings.color;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-
-    const textX = width / 2 + (isDragging && dragTarget === 'text' ? currentPosition.x : textSettings.x);
-    const textY = height / 2 + (isDragging && dragTarget === 'text' ? currentPosition.y : textSettings.y);
-
-    if (isDragging && dragTarget === 'text') {
-      ctx.shadowColor = 'rgba(0, 0, 255, 0.3)';
-      ctx.shadowBlur = 10;
+    if (mainImage) {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        mainImageRef.current = img;
+        drawCanvas();
+      };
+      img.src = mainImage;
     }
 
-    ctx.fillText(textSettings.text, textX, textY);
-    ctx.restore();
-  };
+    if (overlaySettings.image) {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        overlayImageRef.current = img;
+        drawCanvas();
+      };
+      img.src = overlaySettings.image;
+    }
+
+    return () => {
+      if (renderFrameRef.current) {
+        cancelAnimationFrame(renderFrameRef.current);
+      }
+    };
+  }, [mainImage, overlaySettings.image]);
+
+  const drawCanvas = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !mainImageRef.current) return;
+
+    const ctx = canvas.getContext('2d', { alpha: true });
+    if (!ctx) return;
+
+    // Nettoyer le canvas
+    ctx.clearRect(0, 0, width, height);
+
+    // Dessiner l'image principale
+    const img = mainImageRef.current;
+    const scale = Math.min(width / img.width, height / img.height);
+    const x = (width - img.width * scale) / 2;
+    const y = (height - img.height * scale) / 2;
+
+    // Appliquer les filtres
+    ctx.filter = `
+      brightness(${imageSettings.brightness}%)
+      contrast(${imageSettings.contrast}%)
+      saturate(${imageSettings.saturation}%)
+      hue-rotate(${imageSettings.hue}deg)
+    `;
+
+    ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
+
+    // Réinitialiser les filtres
+    ctx.filter = 'none';
+
+    // Dessiner l'image superposée
+    if (overlayImageRef.current && overlaySettings.image) {
+      const overlayImg = overlayImageRef.current;
+      const overlayScale = overlaySettings.scale / 100;
+      const centerX = width / 2 + (isDragging && dragTarget === 'image' ? currentPosition.x : overlaySettings.x);
+      const centerY = height / 2 + (isDragging && dragTarget === 'image' ? currentPosition.y : overlaySettings.y);
+
+      ctx.save();
+      ctx.translate(centerX, centerY);
+      ctx.scale(overlayScale, overlayScale);
+      
+      if (isDragging && dragTarget === 'image') {
+        ctx.shadowColor = 'rgba(0, 0, 255, 0.3)';
+        ctx.shadowBlur = 10;
+      }
+      
+      ctx.drawImage(
+        overlayImg,
+        -overlayImg.width / 2,
+        -overlayImg.height / 2
+      );
+      ctx.restore();
+    }
+
+    // Dessiner le texte
+    if (textSettings.text) {
+      ctx.save();
+      ctx.font = `${textSettings.size}px "${textSettings.fontFamily}"`;
+      ctx.fillStyle = textSettings.color;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      const textX = width / 2 + (isDragging && dragTarget === 'text' ? currentPosition.x : textSettings.x);
+      const textY = height / 2 + (isDragging && dragTarget === 'text' ? currentPosition.y : textSettings.y);
+
+      if (isDragging && dragTarget === 'text') {
+        ctx.shadowColor = 'rgba(0, 0, 255, 0.3)';
+        ctx.shadowBlur = 10;
+      }
+
+      ctx.fillText(textSettings.text, textX, textY);
+      ctx.restore();
+    }
+  }, [imageSettings, overlaySettings, textSettings, width, height, isDragging, dragTarget, currentPosition]);
+
+  useEffect(() => {
+    drawCanvas();
+  }, [drawCanvas]);
 
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -259,10 +237,10 @@ export const IconCanvas = React.forwardRef<HTMLCanvasElement, IconCanvasProps>((
     setCurrentPosition({ x, y });
     onDrag(dragTarget, x, y);
     
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
+    if (renderFrameRef.current) {
+      cancelAnimationFrame(renderFrameRef.current);
     }
-    animationFrameRef.current = requestAnimationFrame(drawCanvas);
+    renderFrameRef.current = requestAnimationFrame(drawCanvas);
   };
 
   const handleMouseUp = () => {
